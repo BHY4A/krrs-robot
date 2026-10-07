@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Робот-балансир</title>
+<meta name="description" content="Робот-балансир: математическая модель, пространство состояний, системная модель и LQR-регулятор по вариантам — графики, отчёт Word и файлы для MATLAB Simulink.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Jura:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/app.css?v=202610072330">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f6e5f'/%3E%3Crect x='11' y='5' width='10' height='15' rx='2' fill='none' stroke='white' stroke-width='2.2' transform='rotate(8 16 20)'/%3E%3Ccircle cx='10' cy='23' r='3.6' fill='none' stroke='white' stroke-width='2.2'/%3E%3Ccircle cx='22' cy='23' r='3.6' fill='none' stroke='white' stroke-width='2.2'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="var(--accent)"/><rect x="11" y="5" width="10" height="15" rx="2" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" transform="rotate(8 16 20)"/><circle cx="10" cy="23" r="3.6" fill="none" stroke="var(--accent-ink)" stroke-width="2.2"/><circle cx="22" cy="23" r="3.6" fill="none" stroke="var(--accent-ink)" stroke-width="2.2"/></svg>
+      <div><b>Робот-балансир · LQR</b><small>Конструирование роботов и робототехнических систем</small></div>
+    </div>
+    <div class="var-ctl">
+      <label for="var-sel">Вариант</label>
+      <div class="var-box"><button id="var-prev" aria-label="Предыдущий вариант">‹</button><select id="var-sel" aria-label="Номер варианта"></select><button id="var-next" aria-label="Следующий вариант">›</button></div>
+    </div>
+    <button class="icon-btn" id="share" aria-label="Скопировать ссылку на этот расчёт" title="Поделиться: скопировать ссылку на этот расчёт"><svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 9.4a2.6 2.6 0 0 0 3.7 0l2.4-2.4a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.4 6.6a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    <button class="icon-btn" id="theme" aria-label="Переключить тему"><svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5a6.5 6.5 0 1 0 0 13z" fill="currentColor"/><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+  </div>
+</header>
+<div class="wrap">
+  <nav class="rail" id="rail" aria-label="Этапы работы"></nav>
+  <main id="main" style="min-width:0"><div class="sheet"><div class="sheet-body"><p class="progress" style="padding:30px 0"><span class="spinner"></span>Загрузка…</p></div></div></main>
+</div>
+
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/plotly.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="js/core.js?v=202610072330"></script>
+<script src="js/linalg.js?v=202610072330"></script>
+<script src="js/data.js?v=202610072330"></script>
+<script src="js/labs.js?v=202610072330"></script>
+<script src="js/explain.js?v=202610072330"></script>
+<script src="js/matlab.js?v=202610072330"></script>
+<script src="js/diagrams.js?v=202610072330"></script>
+<script src="js/charts.js?v=202610072330"></script>
+<script src="js/omml.js?v=202610072330"></script>
+<script src="js/docx.js?v=202610072330"></script>
+<script src="js/report.js?v=202610072330"></script>
+<script src="js/app.js?v=202610072330"></script>
+</body>
+</html>
