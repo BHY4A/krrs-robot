@@ -1,16 +1,17 @@
 /* Layout: лабораторный журнал — липкая шапка с вариантом, левая колонка-навигатор по этапам, справа «лист» с угловым штампом.
-   Палитра — графит на холодной бумаге, сине-зелёный акцент и янтарный второй акцент; линии графиков — как в фигурах MATLAB. */
+   Палитра — графит на сиреневатой бумаге, фиолетовый акцент и янтарный второй акцент; линии графиков — как в фигурах MATLAB. */
 :root {
-  --bg: #e8eeed;
+  --bg: #ebe9f1;
   --sheet: #fbfcfd;
-  --sheet-2: #f1f5f4;
+  --sheet-2: #f4f2f8;
   --fg: #1a222b;
   --muted: #5a6776;
-  --line: #cbd6d3;
-  --line-strong: #a5b4b0;
-  --accent: #0f6e5f;
+  --line: #d3cfdf;
+  --line-strong: #aca6be;
+  --accent: #5a3ea8;
   --accent-ink: #ffffff;
-  --accent-soft: #d8ede8;
+  --accent-soft: #e7e1f6;
+  --brand: #5a3ea8; /* цвет утилиты на «бумаге» (превью Word, подложки) — не меняется в тёмной теме */
   --accent-2: #b4580c;
   --ok: #2b7a4b; --ok-soft: #dff0e5;
   --warn: #9a6512; --warn-soft: #f6ead2;
@@ -18,7 +19,7 @@
   --plot-bg: #ffffff; --grid: #d6dce3; --axis: #3a4653;
   --c1: #0072BD; --c2: #D95319; --c3: #C9971A; --c4: #7E2F8E; --c5: #5E9A2A;
   --zone: rgba(184, 53, 42, 0.10);
-  --calc-bg: #eef3f2;
+  --calc-bg: #f1eff6;
   --code-bg: #f4f6f8; --code-com: #228b22; --code-str: #a020f0; --code-kw: #0000ff; --code-num: #1a222b;
   --shadow: 0 1px 2px rgba(20, 35, 55, .06), 0 6px 24px rgba(20, 35, 55, .06);
   --f-disp: "Jura", "Bahnschrift", "DIN Alternate", "Arial Narrow", sans-serif;
@@ -29,26 +30,26 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1413; --sheet: #131c1b; --sheet-2: #182321; --fg: #e1e8ef; --muted: #93a2b2; --line: #26313d; --line-strong: #3a4756;
-    --accent: #4cc3a5; --accent-ink: #06130f; --accent-soft: #123029; --accent-2: #f0a24a;
+    --bg: #100f16; --sheet: #17151e; --sheet-2: #1d1a26; --fg: #e1e8ef; --muted: #93a2b2; --line: #26313d; --line-strong: #3a4756;
+    --accent: #ad97f0; --accent-ink: #140c28; --accent-soft: #262040; --accent-2: #f0a24a;
     --ok: #59c084; --ok-soft: #13291d; --warn: #e2b04f; --warn-soft: #2c2412; --bad: #f07a6e; --bad-soft: #301a18;
     --plot-bg: #10171e; --grid: #263240; --axis: #8796a6;
     --c1: #4ea7ee; --c2: #f0874a; --c3: #e5c04a; --c4: #c08ad2; --c5: #8fcf5a;
     --zone: rgba(240, 122, 110, 0.14);
-    --calc-bg: #0f151c;
+    --calc-bg: #13121a;
     --code-bg: #10171e; --code-com: #6fc276; --code-str: #d29cf5; --code-kw: #79b8ff; --code-num: #e1e8ef;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 24px rgba(0, 0, 0, .25);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d1413; --sheet: #131c1b; --sheet-2: #182321; --fg: #e1e8ef; --muted: #93a2b2; --line: #26313d; --line-strong: #3a4756;
-  --accent: #4cc3a5; --accent-ink: #06130f; --accent-soft: #123029; --accent-2: #f0a24a;
+  --bg: #100f16; --sheet: #17151e; --sheet-2: #1d1a26; --fg: #e1e8ef; --muted: #93a2b2; --line: #26313d; --line-strong: #3a4756;
+  --accent: #ad97f0; --accent-ink: #140c28; --accent-soft: #262040; --accent-2: #f0a24a;
   --ok: #59c084; --ok-soft: #13291d; --warn: #e2b04f; --warn-soft: #2c2412; --bad: #f07a6e; --bad-soft: #301a18;
   --plot-bg: #10171e; --grid: #263240; --axis: #8796a6;
   --c1: #4ea7ee; --c2: #f0874a; --c3: #e5c04a; --c4: #c08ad2; --c5: #8fcf5a;
   --zone: rgba(240, 122, 110, 0.14);
-  --calc-bg: #0f151c;
+  --calc-bg: #13121a;
   --code-bg: #10171e; --code-com: #6fc276; --code-str: #d29cf5; --code-kw: #79b8ff; --code-num: #e1e8ef;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 24px rgba(0, 0, 0, .25);
   color-scheme: dark;
@@ -149,7 +150,7 @@ figure.fig .plot { width: 100%; min-height: 300px; }
 figure.fig figcaption { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); background: var(--sheet-2); }
 figure.fig figcaption b { color: var(--fg); font-weight: 600; }
 .plot-wait { display: grid; place-items: center; height: 300px; color: var(--muted); font-size: 13px; }
-.spinner { width: 18px; height: 18px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: -4px; margin-right: 8px; }
+.spinner { will-change: transform; width: 18px; height: 18px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: -4px; margin-right: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 .diagram { overflow-x: auto; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); margin: 14px 0; background: var(--plot-bg); }
@@ -344,12 +345,12 @@ details.adv > .in { padding: 0 14px 14px; border-top: 1px solid var(--line); }
 .ex-paper pre.serif { font-family: "Times New Roman", Times, serif; font-size: 13px; }
 .ex-paper.title { text-align: center; }
 .ex-paper.title p { text-indent: 0; text-align: center; font-size: 12px; }
-.ex-logo { display: inline-grid; place-items: center; width: 44px; height: 40px; margin-bottom: 4px; border-radius: 4px; background: #0f6e5f; color: #fff; font: 700 9px/1 var(--f-body); }
+.ex-logo { display: inline-grid; place-items: center; width: 44px; height: 40px; margin-bottom: 4px; border-radius: 4px; background: var(--brand); color: #fff; font: 700 9px/1 var(--f-body); }
 .ex-paper.fig { padding: 8px 10px; }
 .ex-paper.fig svg { display: block; width: 100%; height: 96px; }
 .ex-paper.fig p.cap { text-align: center; margin-top: 4px; }
-.ex-wm { position: absolute; left: 12%; right: 12%; top: 18px; background: #fff; border: 1px solid #c9d1da; border-left: 3px solid #0f6e5f; border-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,.15); padding: 6px 9px; display: flex; flex-direction: column; gap: 1px; font-family: var(--f-body); }
-.ex-wm b { font-size: 12px; color: #0f6e5f; }
+.ex-wm { position: absolute; left: 12%; right: 12%; top: 18px; background: #fff; border: 1px solid #c9d1da; border-left: 3px solid var(--brand); border-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,.15); padding: 6px 9px; display: flex; flex-direction: column; gap: 1px; font-family: var(--f-body); }
+.ex-wm b { font-size: 12px; color: var(--brand); }
 .ex-wm span { font-size: 11px; color: #5a6776; }
 .ex-brk { margin: 6px -14px; border-top: 2px dashed #9aa5b1; position: relative; height: 0; }
 .ex-brk span { position: absolute; right: 10px; top: -9px; background: #fff; padding: 0 5px; font: 10.5px/1.6 var(--f-body); color: #7d8996; }
@@ -401,8 +402,9 @@ label.btn { cursor: pointer; }
 .modal-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
 /* навигация по разделам */
-nav.rail { max-height: calc(100vh - 90px); overflow-y: auto; scrollbar-width: none; }
-nav.rail::-webkit-scrollbar { display: none; }
+nav.rail { max-height: calc(100vh - 90px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+nav.rail::-webkit-scrollbar { width: 6px; }
+nav.rail::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
 .rail-toc { display: flex; flex-direction: column; margin: 2px 0 8px 22px; padding-left: 10px; border-left: 2px solid var(--line); }
 .rail-toc a { display: grid; grid-template-columns: 30px 1fr; gap: 4px; padding: 4px 8px; border: 0; border-radius: 4px; font-size: 12.5px; line-height: 1.3; color: var(--muted); }
 .rail-toc a .tn { font: 500 11.5px/1.35 var(--f-mono); color: var(--muted); }

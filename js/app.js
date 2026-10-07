@@ -389,7 +389,8 @@
             ${optRow('Улучшение читаемости', 'Не разрывать абзацы, списки, листинги и пояснение с формулой между страницами.', sw('readable'))}
           </div>
           <h3>Скачать</h3>
-          <div class="dact"><button class="btn primary" data-docx="all">${dlIcon()} Отчёт Word по работе (этапы 1–4)</button><button class="btn" id="zip-all">${dlIcon()} Архив работы (.zip)</button></div>
+          <div class="dl-grid"><button class="btn primary dl-all" data-docx="all">${dlIcon()} Отчёт по работе, этапы 1–4 (.docx)</button></div>
+          <div class="dact"><button class="btn" id="zip-all">${dlIcon()} Архив работы (.zip)</button></div>
           <p class="dhint">Архив: скрипты MATLAB по этапам (как в методичке и для автоматической сборки моделей Simulink), отчёт Word, полный расчёт в HTML, графики PNG и данные CSV.</p>
         </section>
         <section class="dsec">
@@ -886,7 +887,7 @@
         const W = c.width, H = c.height, u = W / 900;
         g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(0, 0, W, H);
         const Lc = 34 * u, m = 10 * u;
-        g.strokeStyle = '#0F6E5F'; g.lineWidth = 3 * u; g.lineCap = 'round';
+        g.strokeStyle = '#5A3EA8'; g.lineWidth = 3 * u; g.lineCap = 'round';
         [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]].forEach(([x, y, sx, sy]) => { g.beginPath(); g.moveTo(x, y + sy * Lc); g.lineTo(x, y); g.lineTo(x + sx * Lc, y); g.stroke(); });
         const f1 = 22 * u, f2 = 15 * u, lh2 = f2 * 1.35, pad = 18 * u, gap = 8 * u, ic = 30 * u;
         const sans = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
@@ -906,9 +907,9 @@
         g.fillStyle = 'rgba(255,255,255,0.97)';
         g.beginPath(); g.moveTo(x0 + r, y0); g.arcTo(x0 + cw, y0, x0 + cw, y0 + ch, r); g.arcTo(x0 + cw, y0 + ch, x0, y0 + ch, r); g.arcTo(x0, y0 + ch, x0, y0, r); g.arcTo(x0, y0, x0 + cw, y0, r); g.closePath(); g.fill();
         g.restore();
-        g.strokeStyle = 'rgba(15,110,95,0.25)'; g.lineWidth = 1.5 * u; g.stroke();
+        g.strokeStyle = 'rgba(90,62,168,0.25)'; g.lineWidth = 1.5 * u; g.stroke();
         const ix = x0 + pad, iy = y0 + pad;
-        g.fillStyle = '#0F6E5F'; g.beginPath(); g.arc(ix + ic / 2, iy + ic / 2, ic / 2, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#5A3EA8'; g.beginPath(); g.arc(ix + ic / 2, iy + ic / 2, ic / 2, 0, Math.PI * 2); g.fill();
         g.strokeStyle = '#fff'; g.lineWidth = 2.2 * u; g.lineJoin = 'round';
         g.beginPath(); g.moveTo(ix + ic * 0.25, iy + ic * 0.68); g.lineTo(ix + ic * 0.45, iy + ic * 0.45); g.lineTo(ix + ic * 0.6, iy + ic * 0.6); g.lineTo(ix + ic * 0.76, iy + ic * 0.36); g.stroke();
         const tx = ix + ic + pad * 0.8;
@@ -1009,10 +1010,10 @@ h1{font-size:22px;border-bottom:2px solid #1a222b;padding-bottom:6px;margin-top:
 table{border-collapse:collapse;margin:10px 0;font-size:13px}td,th{border:1px solid #aab4bf;padding:4px 8px;text-align:left}caption{text-align:left;font-weight:600;padding:4px 0}
 .katex-display{text-align:left;margin:4px 0}.katex-display>.katex{text-align:left}
 .check{padding:6px 10px;border:1px solid #9cc7ab;background:#eef8f1;margin:6px 0}.check.bad{border-color:#e0a49d;background:#fbeceb}.mark{font-weight:700;margin-right:8px}
-.note{padding:6px 10px;border-left:3px solid #0f6e5f;background:#eaf5f2;margin:8px 0}.note.warn{border-color:#9a6512;background:#fbf4e6}.note.bad{border-color:#b8352a;background:#fbeceb}
+.note{padding:6px 10px;border-left:3px solid #5a3ea8;background:#f1edfa;margin:8px 0}.note.warn{border-color:#9a6512;background:#fbf4e6}.note.bad{border-color:#b8352a;background:#fbeceb}
 figure{margin:14px 0}figure img{max-width:100%;border:1px solid #ccd4dd}figcaption{font-size:13px;color:#5a6776}
 pre{background:#f4f6f8;padding:10px;overflow:auto;font-size:12px}.code-head{font-family:monospace;font-size:12px;background:#e9edf1;padding:4px 8px}.acts,button{display:none!important}
-svg.ssdm .wire{fill:none;stroke:#1a222b;stroke-width:1.2}svg.ssdm .arrowhead{fill:#1a222b}svg.ssdm .blk{fill:#fff;stroke:#1a222b;stroke-width:1.2}svg.ssdm .blk.acc{fill:#d8ede8;stroke:#0f6e5f}svg.ssdm .blk.dsh{stroke-dasharray:5 3;fill:#f2f5f8}svg.ssdm .bar{fill:#1a222b}
+svg.ssdm .wire{fill:none;stroke:#1a222b;stroke-width:1.2}svg.ssdm .arrowhead{fill:#1a222b}svg.ssdm .blk{fill:#fff;stroke:#1a222b;stroke-width:1.2}svg.ssdm .blk.acc{fill:#e7e1f6;stroke:#5a3ea8}svg.ssdm .blk.dsh{stroke-dasharray:5 3;fill:#f2f5f8}svg.ssdm .bar{fill:#1a222b}
 svg.ssdm .bt{font:12px monospace;fill:#1a222b}svg.ssdm .frac{stroke:#1a222b}svg.ssdm .cap{font:10.5px sans-serif;fill:#5a6776}svg.ssdm .sum{fill:#fff;stroke:#1a222b}svg.ssdm .sumx{stroke:#1a222b;stroke-width:.8}svg.ssdm .sg{font:600 12px monospace;fill:#1a222b}svg.ssdm .lbl{font:italic 12.5px sans-serif;fill:#b4580c}svg.ssdm .dot{fill:#1a222b}
 .calc{border:1.5px dashed #a9b4c0;background:#f3f5f8;padding:6px 12px;margin:8px 0;border-radius:6px}.calc-math{overflow-x:auto}.calc-tools{display:none}.calc-desc{font-size:13px;color:#5a6776;border-top:1px dashed #ccd4dd;padding-top:4px}.dg{overflow-x:auto}.fell{color:#b8352a;font-weight:600}
 @media print{h1{page-break-before:always}section:first-child h1{page-break-before:avoid}pre{max-height:none}}</style></head><body>
@@ -1023,7 +1024,7 @@ ${parts.join('\n')}</body></html>`;
   let toastT = null;
   function toast(t) {
     let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-    el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600);
+    el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2800);
   }
   function go(tab) { S.tab = tab; S.skipAuto = true; save(); setHash(); renderTab(); window.scrollTo({ top: 0 }); }
   function themeToggle() {
@@ -1031,12 +1032,12 @@ ${parts.join('\n')}</body></html>`;
     const cur = r.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     const nx = cur === 'dark' ? 'light' : 'dark';
     r.setAttribute('data-theme', nx);
-    try { localStorage.setItem('rb-theme', nx); } catch (e) { /* ignore */ }
+    try { localStorage.setItem('suite-theme', nx); } catch (e) { /* ignore */ }
     if (S.tab !== 'data') renderTab();
   }
 
   function init() {
-    try { const th = localStorage.getItem('rb-theme'); if (th) document.documentElement.setAttribute('data-theme', th); } catch (e) { /* ignore */ }
+    try { const th = localStorage.getItem('suite-theme'); if (th) document.documentElement.setAttribute('data-theme', th); } catch (e) { /* ignore */ }
     $('#rail').innerHTML = LABS_META.map(m => `<a href="#" data-tab="${m.id}"><span class="no" data-short="${m.short}">${m.no === '0' ? '◦' : m.no === '5' ? '?' : m.no}</span><span class="t">${m.t}</span><span class="s">${m.s}</span></a>`).join('') + '<div class="rail-foot" id="rail-foot"></div>';
     $$('nav.rail a').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.tab); });
     $('#var-sel').onchange = e => setVariant(+e.target.value);
