@@ -57,7 +57,9 @@ PWM_max = ${m(P.PWMmax)};       % предел скважности ШИМ
   }
 
   /* ---------- Rob_SM.m ---------- */
-  function robSM(R, stage) {
+  /* level (этап 4): 1 — только s1, s2; 2 — + интегратор s3; 3 — + объединённая s4 */
+  function robSM(R, stage, level) {
+    if (level === undefined) level = 3;
     let s = `%% Rob_SM.m — модель робота-балансира в пространстве состояний
 % Загрузка параметров
 parametrs_Rob;
@@ -103,7 +105,7 @@ s2.StateName = {'phi', 'phi_dot'};
 s2.InputName = {'Vl', 'Vr'};
 s2.OutputName = {'phi', 'phi_dot'};
 `;
-    if (stage >= 4) s += `
+    if (stage >= 4 && level >= 2) s += `
 % Интегратор угла theta (п. 4.4)
 s0 = ss(1/tf('s'));
 s0.StateName = 'theta_int';
@@ -111,7 +113,8 @@ s0.OutputName = 'theta_int';
 s3 = append(s0, s1);
 s3.A(1,2) = 1;
 s3(:,1) = [];
-
+`;
+    if (stage >= 4 && level >= 3) s += `
 % Объединение с моделью поворота (п. 4.5)
 s4 = append(s3, s2);
 s4.B(end, [1 2]) = s4.B(end, [3 4]);
@@ -119,8 +122,8 @@ s4(:, [3 4]) = [];
 `;
     return s;
   }
-  const config = R => `%% config.m — выбор модели: 0 — идеальная, 1 — с неидеальностями (квантование ШИМ и датчиков)
-real_model = 0;
+  const config = (R, real) => `%% config.m — выбор модели: 0 — идеальная, 1 — с неидеальностями (квантование ШИМ и датчиков)
+real_model = ${real ? 1 : 0};
 `;
   const preload = R => `%% preload.m — шины данных Ctl и Data
 % В методичке шины создаются в Bus Editor и сохраняются в bus_data.mat;
@@ -136,8 +139,21 @@ else
     save('bus_data.mat', 'Ctl', 'Data');
 end
 `;
-  function control(R) {
+  /* mode не задан — универсальный control.m (switch по lqr_mode); 1/2/3 — как на соответствующем шаге методички */
+  function control(R, mode) {
     const P = R.P;
+    const qw = P.qw !== 1 ? m(P.qw) + '*' : '', rw = P.rw !== 1 ? m(P.rw) + '*' : '';
+    if (mode) {
+      const sys = ['s1', 's3', 's4'][mode - 1], nx = [4, 5, 7][mode - 1], K = R.lqr[sys].K;
+      const what = ['по модели наклона s1 (п. 4.3)', 'с интегратором, модель s3 (п. 4.4)', 'с управлением движением, модель s4 (п. 4.5)'][mode - 1];
+      return `%% control.m — синтез LQR-регулятора ${what}
+QQ = ${qw}eye(${nx});
+RR = ${rw}eye(2);
+Klqr = lqr(${sys}, QQ, RR);
+% Ожидаемое значение (веб-утилита):
+%   Klqr = ${mmat(K.map(r => r.map(v => +v.toPrecision(5))))}
+`;
+    }
     return `%% control.m — синтез LQR-регулятора
 % lqr_mode: 1 — по модели s1 (4 состояния), 2 — с интегратором (s3, 5 состояний),
 %           3 — с управлением движением (s4, 7 состояний)
@@ -189,6 +205,24 @@ K = W/(2*R)*alpha;                              fprintf('K = %.6g Н*м/В\\n', 
 `;
   }
 
+  /* сохранение окна Figure в PNG (папка figures рядом со скриптом) */
+  const savePngFn = `
+function save_png(fh, name)
+    % сохраняет окно Figure в figures/<name>.png (200 dpi)
+    if ~exist('figures', 'dir'), mkdir('figures'); end
+    f = fullfile('figures', [name '.png']);
+    drawnow;
+    try
+        exportgraphics(fh, f, 'Resolution', 200);   % R2020a и новее
+    catch
+        set(fh, 'PaperPositionMode', 'auto');
+        print(fh, f, '-dpng', '-r200');
+    end
+    fprintf('Рисунок сохранён: %s\\n', f);
+end
+`;
+  const saveFlag = `save_figs = true;   % true — сохранять рисунки в PNG (папка figures); false — только показать
+`;
   /* ---------- общие функции построения моделей ---------- */
   const helpers = `
 %% ---- вспомогательные функции построения модели
@@ -201,7 +235,7 @@ end
 function sub(path, pos)
     add_block('built-in/Subsystem', path, 'Position', pos);
 end
-`;
+` + savePngFn;
   /* подсистема перевода ШИМ в напряжение: Ideal (1/K_PWM) или Real (Round, Gain, Saturation) по real_model */
   function realIn(P) {
     const pdf = P.satOrder !== 'pwm';
@@ -298,14 +332,18 @@ new_system(mdl); open_system(mdl);
 `;
 
   /* ---------- этап 2: модель рис. 19 ---------- */
-  function modelSS(R) {
+  /* signs: какие расчёты выполнить — [1] (рис. 2.1), [-1] (рис. 2.2) или [1, -1] (весь этап) */
+  function modelSS(R, signs) {
     const P = R.P;
+    signs = signs || [1, -1];
+    const runs = signs.map(g => g > 0
+      ? '%   g > 0 — робот стоит без регулятора (неустойчив, графики уходят в бесконечность) — рис. 2.1 на сайте;'
+      : '%   g < 0 — робот «подвешен» за колёса (маятник с затуханием) — рис. 2.2 на сайте;').join('\n');
     return header('Этап 2. Модель робота-балансира в пространстве состояний (рис. 19)', R) + `% Нужны файлы parametrs_Rob.m и Rob_SM.m в той же папке.
-% Скрипт строит модель Rob_ss.slx и моделирует её дважды:
-%   g > 0 — робот стоит без регулятора (неустойчив, графики уходят в бесконечность);
-%   g < 0 — робот «подвешен» за колёса (маятник с затуханием).
+% Скрипт строит модель Rob_ss.slx и моделирует её${signs.length > 1 ? ' дважды' : ''}:
+${runs}
 g_sign = 1; Rob_SM;
-Uopen = ${m(P.Uopen)};      % напряжение на двигателях, В (блок Constant)
+${saveFlag}Uopen = ${m(P.Uopen)};      % напряжение на двигателях, В (блок Constant)
 
 ${newModel('Rob_ss')}b([mdl '/Constant'], 'simulink/Sources/Constant', [30 100 70 130], 'Value', 'Uopen');
 b([mdl '/Mux'], 'simulink/Signal Routing/Mux', [120 90 125 140], 'Inputs', '2');
@@ -327,34 +365,43 @@ set_param(mdl, 'InitFcn', 'Rob_SM', 'Solver', 'ode45', 'RelTol', '1e-6');
 save_system(mdl);
 
 ${plotStyle}names = {'\\theta, рад', '\\psi, рад', 'd\\theta/dt, рад/с', 'd\\psi/dt, рад/с'};
-for g_sign = [1 -1]
+fig_names = {'Рис. 2.1. Реакция модели при g > 0', 'Рис. 2.2. «Подвешенный» робот, g < 0'};
+for g_sign = [${signs.join(' ')}]
     Rob_SM;
     T = ${m(Math.min(P.Tsim, Math.max(0.3, 8 / Math.max(R.lamU, 1e-3))))}; if g_sign < 0, T = ${m(P.Tsim)}; end
     set_param(mdl, 'StopTime', num2str(T));
     out = sim(mdl);
     x1 = out.get('x1_ws'); t = x1.time; X = x1.signals.values;
-    figure('Name', sprintf('Этап 2: g = %g', g));
+    % раскладка как на сайте: theta, psi / theta_dot, psi_dot
+    fh = figure('Name', fig_names{1 + (g_sign < 0)}, 'NumberTitle', 'off', 'Position', [100 100 900 520]);
     for k = 1:4
-        subplot(4, 1, k); plot(t, X(:, k)); ylabel(names{k});
+        subplot(2, 2, k); plot(t, X(:, k)); ylabel(names{k});
+        if k > 2, xlabel('t, c'); end
     end
-    xlabel('t, c');
+    if save_figs, png_names = {'Ris_2_1_g_plus', 'Ris_2_2_g_minus'}; save_png(fh, png_names{1 + (g_sign < 0)}); end
     fprintf('g = %6.2f: собственные значения A1 = %s\\n', g, mat2str(eig(A1).', 5));
+    if g_sign < 0
+        fprintf('Установившаяся скорость theta'' = %.4g рад/с (расчёт: ${m(+R.thdSS.toPrecision(5))})\\n', X(end, 3));
+    end
 end
 g_sign = 1;
 ` + helpers;
   }
 
   /* ---------- этап 3: системная модель ---------- */
-  function modelSys(R) {
+  /* models: [0] — только идеальная модель; [0, 1] — идеальная и реальная (весь этап, рис. 3.1–3.2) */
+  function modelSys(R, models) {
     const P = R.P;
+    models = models || [0, 1];
     return header('Этап 3. Системная модель робота (рис. 29, 38)', R) + `% Нужны parametrs_Rob.m, Rob_SM.m, config.m, preload.m в той же папке.
 % Скрипт строит модель Rob_sys.slx: Controller (пока передаёт задание U на выход Ctl)
 % и Plant (Real_in → State-Space → MATLAB Function → Real_out).
+% Моделирование: ${models.length > 1 ? 'идеальная и реальная модели на одних графиках (рис. 3.1–3.2 на сайте)' : 'только идеальная модель (кривые «идеальная» на рис. 3.1–3.2 сайта)'}.
 % Вариантные подсистемы методички заменены переключателем Switch по переменной real_model,
 % шины Ctl и Data — мультиплексорами (для ручной сборки по методичке используйте preload.m).
 g_sign = -1;          % проверка: робот «подвешен» за колёса
 Rob_SM; preload; config;
-U0 = ${m(P.Uopen)};            % задание ШИМ (блок Constant)
+${saveFlag}U0 = ${m(P.Uopen)};            % задание ШИМ (блок Constant)
 
 ${newModel('Rob_sys')}b([mdl '/Constant'], 'simulink/Sources/Constant', [30 100 70 130], 'Value', 'U0');
 b([mdl '/Mux'], 'simulink/Signal Routing/Mux', [110 90 115 140], 'Inputs', '2');
@@ -373,29 +420,57 @@ set_param(mdl, 'PreLoadFcn', sprintf('preload\\nconfig'), 'InitFcn', 'Rob_SM');
 set_param(mdl, 'Solver', 'ode4', 'FixedStep', '${m(R.dt)}', 'StopTime', '${m(P.Tsim)}');
 save_system(mdl);
 
-${plotStyle}for real_model = [0 1]
+${plotStyle}models = [${models.join(' ')}];   % 0 — идеальная модель, 1 — с квантованием ШИМ и датчиков
+res = struct('t', {}, 'Y', {});
+for k = 1:numel(models)
+    real_model = models(k);
     out = sim(mdl);
     d = out.get('data_ws'); t = d.time; Y = squeeze(d.signals.values);
     if size(Y, 1) == 3 && size(Y, 2) ~= 3, Y = Y.'; end
-    figure('Name', sprintf('Этап 3: real_model = %d', real_model));
-    subplot(2, 1, 1); plot(t, Y(:, 1), t, Y(:, 2), '--'); ylabel('enc, град'); legend('enc_l', 'enc_r', 'Location', 'best');
-    subplot(2, 1, 2); plot(t, Y(:, 3)); ylabel('gyro, град/с'); xlabel('t, c');
+    res(k).t = t; res(k).Y = Y;
 end
+% графики как на сайте: идеальная — сплошная, реальная — ступенчатая пунктирная
+leg = {'идеальная', 'реальная'}; leg = leg(models + 1);
+ylab = {'enc_l, град', 'enc_r, град', 'gyro, град/с'};
+sfx = ''; if numel(models) == 1, sfx = '_ideal'; end
+fh = figure('Name', 'Рис. 3.1. Показания энкодеров enc_l, enc_r', 'NumberTitle', 'off', 'Position', [100 100 900 360]);
+for j = 1:2
+    subplot(1, 2, j); hold on;
+    for k = 1:numel(models)
+        if models(k) == 0, plot(res(k).t, res(k).Y(:, j)); else, stairs(res(k).t, res(k).Y(:, j), ':'); end
+    end
+    hold off; box on; ylabel(ylab{j}, 'Interpreter', 'none'); xlabel('t, c'); legend(leg, 'Location', 'best');
+end
+if save_figs, save_png(fh, ['Ris_3_1_enc' sfx]); end
+fh = figure('Name', 'Рис. 3.2. Показания гироскопа', 'NumberTitle', 'off', 'Position', [100 100 900 400]); hold on;
+for k = 1:numel(models)
+    if models(k) == 0, plot(res(k).t, res(k).Y(:, 3)); else, stairs(res(k).t, res(k).Y(:, 3)); end
+end
+hold off; box on; ylabel(ylab{3}); xlabel('t, c'); legend(leg, 'Location', 'best');
+if save_figs, save_png(fh, ['Ris_3_2_gyro' sfx]); end
 real_model = 0; g_sign = 1;
 ` + helpers + realIn(P) + fcnBlock(P);
   }
 
   /* ---------- этап 4: модель с LQR ---------- */
-  function modelLQR(R) {
+  /* mode не задан — универсальный скрипт (lqr_mode можно задать заранее, по умолчанию 3);
+   * 1/2/3 — режим зашит, как на соответствующем шаге методички */
+  function modelLQR(R, mode) {
     const P = R.P;
-    return header('Этап 4. Модель робота с LQR-регулятором (рис. 45, 52)', R, true) + `clearvars -except lqr_mode; clc; close all;
+    const pre = mode
+      ? `clear; clc; close all;
+% Нужны parametrs_Rob.m, Rob_SM.m, config.m, preload.m, control.m в той же папке.
+lqr_mode = ${mode};   % 1 — регулятор по s1; 2 — с интегратором (s3); 3 — с управлением движением (s4)
+% real_model (config.m): 0 — идеальные датчики, 1 — квантование ШИМ и датчиков.`
+      : `clearvars -except lqr_mode; clc; close all;
 % Нужны parametrs_Rob.m, Rob_SM.m, config.m, preload.m, control.m в той же папке.
 % lqr_mode: 1 — регулятор по s1; 2 — с интегратором (s3); 3 — с управлением движением (s4).
 % real_model (config.m): 0 — идеальные датчики, 1 — квантование ШИМ и датчиков.
-if ~exist('lqr_mode', 'var'), lqr_mode = 3; end
+if ~exist('lqr_mode', 'var'), lqr_mode = 3; end`;
+    return header('Этап 4. Модель робота с LQR-регулятором (рис. 45, 52)', R, true) + pre + `
 g_sign = 1;
 Rob_SM; preload; config; control;
-vref = ${m(P.vref)};   % заданная скорость θ', рад/с
+${saveFlag}vref = ${m(P.vref)};   % заданная скорость θ', рад/с
 wref = ${m(P.wref)};   % заданная скорость поворота φ', рад/с
 nx = size(Klqr, 2);
 
@@ -438,10 +513,15 @@ out = sim(mdl);
 y = out.get('y_ws'); t = y.time; Y = y.signals.values;
 ${plotStyle}names = {'\\theta, рад', '\\psi, рад', 'd\\theta/dt, рад/с', 'd\\psi/dt, рад/с', '\\phi, рад', 'd\\phi/dt, рад/с'};
 order = [1 3 5 2 4 6];   % как на осциллографе методички: theta, theta_dot, phi / psi, psi_dot, phi_dot
-figure('Name', sprintf('Этап 4: lqr_mode = %d, real_model = %d', lqr_mode, real_model));
+fig_names = {'Рис. 4.1. Регулятор по модели s1', 'Рис. 4.2. Регулятор с интегратором', ...
+    'Рис. 4.3. Управление движением: идеальные датчики', 'Рис. 4.4. Управление движением: неидеальные датчики'};
+fig_no = lqr_mode + (lqr_mode == 3 && real_model == 1);
+fh = figure('Name', sprintf('%s (lqr_mode = %d, real_model = %d)', fig_names{fig_no}, lqr_mode, real_model), 'NumberTitle', 'off', 'Position', [100 100 1000 560]);
 for k = 1:6
-    subplot(2, 3, k); plot(t, Y(:, order(k))); title(names{order(k)}); xlabel('t, c');
+    subplot(2, 3, k); plot(t, Y(:, order(k))); ylabel(names{order(k)});
+    if k > 3, xlabel('t, c'); end
 end
+if save_figs, save_png(fh, sprintf('Ris_4_%d_lqr%d_real%d', fig_no, lqr_mode, real_model)); end
 fprintf('Klqr = %s\\n', mat2str(Klqr, 5));
 fprintf('psi(конец) = %.3g рад, theta''(конец) = %.4g рад/с, phi''(конец) = %.4g рад/с\\n', Y(end, 2), Y(end, 3), Y(end, 6));
 ` + helpers + realIn(P) + fcnBlock(P) + `
@@ -489,7 +569,7 @@ end
     const P = R.P;
     return header('Этап 4. Проверка LQR-регуляторов без Simulink (обратная связь по полному вектору состояния)', R) + `% Нужны parametrs_Rob.m и Rob_SM.m в той же папке.
 g_sign = 1; Rob_SM;
-T = 0:${m(R.dt)}:${m(P.Tsim)};
+${saveFlag}T = 0:${m(R.dt)}:${m(P.Tsim)};
 K1 = lqr(s1, ${P.qw !== 1 ? m(P.qw) + '*' : ''}eye(4), ${P.rw !== 1 ? m(P.rw) + '*' : ''}eye(2));
 K3 = lqr(s3, ${P.qw !== 1 ? m(P.qw) + '*' : ''}eye(5), ${P.rw !== 1 ? m(P.rw) + '*' : ''}eye(2));
 K4 = lqr(s4, ${P.qw !== 1 ? m(P.qw) + '*' : ''}eye(7), ${P.rw !== 1 ? m(P.rw) + '*' : ''}eye(2));
@@ -507,11 +587,12 @@ c3 = ss(s3.A - s3.B*K3, zeros(5, 1), eye(5), 0);
 r = [${m(P.vref)}*T.^2/2; ${m(P.vref)}*T; zeros(size(T)); ${m(P.vref)}*ones(size(T)); zeros(size(T)); ${m(P.wref)}*T; ${m(P.wref)}*ones(size(T))];
 c4 = ss(s4.A - s4.B*K4, s4.B*K4, eye(7), 0);
 y4 = lsim(c4, r.', T, [0 0 Psi0 0 0 0 0]);
-figure('Name', 'Этап 4: проверка без Simulink');
+fh = figure('Name', 'Этап 4: проверка без Simulink', 'NumberTitle', 'off', 'Position', [100 100 900 700]);
 subplot(3, 1, 1); plot(t1, y1(:, 2), t3, y3(:, 3), '--'); ylabel('\\psi, рад'); legend('s1', 's3'); title('Начальный наклон Psi0');
 subplot(3, 1, 2); plot(T, y4(:, 4), T, y4(:, 7), '--'); ylabel('рад/с'); legend('d\\theta/dt', 'd\\phi/dt'); title('Управление движением');
 subplot(3, 1, 3); plot(T, y4(:, 3)); ylabel('\\psi, рад'); xlabel('t, c');
-`;
+if save_figs, save_png(fh, 'Ris_4_check_bez_Simulink'); end
+` + savePngFn;
   }
 
   /* ---------- README ---------- */
@@ -536,6 +617,9 @@ subplot(3, 1, 3); plot(T, y4(:, 3)); ylabel('\\psi, рад'); xlabel('t, c');
  5. config.m — real_model = 0 (идеальная модель) или 1 (квантование
     ШИМ и датчиков); preload.m — шины Ctl и Data (bus_data.mat).
  6. control.m — синтез LQR (lqr_mode = 1, 2, 3).
+ 7. Рисунки сохраняются автоматически в PNG (200 dpi) в папку figures
+    рядом со скриптами: Ris_2_2_g_minus.png и т. п. — номер как на сайте.
+    Отключить: в начале скрипта Rob_model_*.m поставить save_figs = false.
 
 Состав:
   Etap1_Model/rob_raschet.m        параметры модели, матрицы E, F, G, H, I, J, K
@@ -543,6 +627,9 @@ subplot(3, 1, 3); plot(T, y4(:, 3)); ylabel('\\psi, рад'); xlabel('t, c');
   Etap3_SystemModel/               + config, preload, Rob_model_sys (рис. 29–39)
   Etap4_LQR/                       + control, Rob_model_lqr (рис. 45–52),
                                    Rob_lqr_check (проверка без Simulink)
+  Po_shagam/                       те же файлы по шагам работы: в каждой папке —
+                                   полный набор на этот момент и README.txt
+                                   (что запустить и какой рисунок сайта получится)
   Otchet_Robot_*.docx              отчёт Word (ГОСТ 7.32/2.105)
   Report/                          полный расчёт (HTML), графики PNG, данные CSV
 

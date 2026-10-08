@@ -391,7 +391,7 @@
           <h3>Скачать</h3>
           <div class="dl-grid"><button class="btn primary dl-all" data-docx="all">${dlIcon()} Отчёт по работе, этапы 1–4 (.docx)</button></div>
           <div class="dact"><button class="btn" id="zip-all">${dlIcon()} Архив работы (.zip)</button></div>
-          <p class="dhint">Архив: скрипты MATLAB по этапам (как в методичке и для автоматической сборки моделей Simulink), отчёт Word, полный расчёт в HTML, графики PNG и данные CSV.</p>
+          <p class="dhint">Архив: скрипты MATLAB по этапам (как в методичке и для автоматической сборки моделей Simulink), те же скрипты по шагам в папке Po_shagam (каждая папка — набор файлов, после запуска которого получается соответствующий рисунок сайта), отчёт Word, полный расчёт в HTML, графики PNG и данные CSV. Архив отдельного шага скачивается на странице этапа.</p>
         </section>
         <section class="dsec">
           <h2>4. Сохранения</h2>
@@ -762,6 +762,108 @@
     return [];
   }
   const ALLTABS = ['lr1', 'lr2', 'lr3', 'lr4'];
+  /* ---------- шаги этапа: полный набор файлов на каждый момент работы ----------
+   * run — что запустить; figs — рисунки сайта, которые увидит студент; files — состояние папки на этом шаге */
+  function labSteps(tab) {
+    const R = S.R, P = S.P, f = fnum;
+    const F = (name, desc, gen) => ({ name, desc, gen });
+    switch (tab) {
+      case 'lr1': return [
+        { key: 'raschet', title: 'Расчёт параметров модели', sec: '1.2–1.6', run: 'rob_raschet',
+          result: 'В Command Window — Jw, α, β, матрицы E, F, G, H и коэффициенты I, J, K. Сверьте с формулами выше.',
+          files: [F('rob_raschet.m', 'Моменты инерции, α, β, матрицы E, F, G, H и коэффициенты I, J, K', () => G.raschet(R))] }];
+      case 'lr2': {
+        const par = F('parametrs_Rob.m', 'Исходные данные робота (g_sign = −1 — «подвешенный» робот)', () => G.params(R, 2));
+        const sm = F('Rob_SM.m', 'Матрицы пространства состояний, системы s1 и s2', () => G.robSM(R, 2));
+        return [
+          { key: 'model', title: 'Модель в пространстве состояний', sec: '2.2–2.4', run: 'Rob_SM; s1, s2, eig(A1)',
+            result: 'Матрицы A1, B1, A2, B2 и собственные значения A1, как в разд. 2.3–2.4. Для «подвешенного» робота: g_sign = -1; Rob_SM; eig(A1).',
+            files: [par, sm] },
+          { key: 'g_plus', title: 'Модель Simulink: робот без регулятора, g > 0', sec: '2.5', run: 'Rob_model_ss', figs: ['lr2_up'],
+            result: 'Модель Rob_ss.slx и окно с графиками θ, ψ, θ̇, ψ̇: координаты неограниченно растут — робот падает.',
+            files: [par, sm, F('Rob_model_ss.m', 'Строит модель рис. 19 (Rob_ss.slx) и моделирует при g > 0', () => G.modelSS(R, [1]))] },
+          { key: 'g_minus', title: 'Проверка модели: «подвешенный» робот, g < 0', sec: '2.5', run: 'Rob_model_ss', figs: ['lr2_dn'],
+            result: `Затухающие колебания ψ; скорость θ̇ выходит на ${f(R.thdSS)} рад/с. Значения сравните с таблицей «Сравнение моделирования с расчётом».`,
+            files: [par, sm, F('Rob_model_ss.m', 'Моделирует «подвешенного» робота (g < 0)', () => G.modelSS(R, [-1]))] }];
+      }
+      case 'lr3': {
+        const base = [F('parametrs_Rob.m', 'Исходные данные + K_PWM', () => G.params(R, 3)), F('Rob_SM.m', 'Модель в пространстве состояний (s1, s2)', () => G.robSM(R, 3)),
+          F('config.m', 'real_model = 0 — идеальная модель', () => G.config(R, 0)), F('preload.m', 'Шины Ctl и Data (bus_data.mat)', () => G.preload(R))];
+        return [
+          { key: 'ideal', title: 'Системная модель: идеальная', sec: '3.1–3.6', run: 'Rob_model_sys', figs: ['lr3_enc', 'lr3_gyro'], partial: true,
+            result: 'Модель Rob_sys.slx (Controller + Plant) и графики энкодеров и гироскопа — кривые «идеальная».',
+            files: base.concat(F('Rob_model_sys.m', 'Строит Rob_sys.slx и моделирует идеальную модель', () => G.modelSys(R, [0]))) },
+          { key: 'real', title: 'Неидеальности: квантование ШИМ и датчиков', sec: '3.4, 3.7', run: 'Rob_model_sys', figs: ['lr3_enc', 'lr3_gyro'],
+            result: 'Идеальная и реальная модели на одних графиках: у реальной показания ступенчатые (шаг 1° и 1°/с).',
+            files: base.concat(F('Rob_model_sys.m', 'Моделирует идеальную и реальную модели, графики наложены', () => G.modelSys(R, [0, 1]))) }];
+      }
+      case 'lr4': {
+        const par = F('parametrs_Rob.m', 'Исходные данные + K_PWM, Psi0', () => G.params(R, 4)), pre = F('preload.m', 'Шины Ctl и Data', () => G.preload(R));
+        const cfg0 = F('config.m', 'real_model = 0 — идеальные датчики', () => G.config(R, 0));
+        const sm = lv => F('Rob_SM.m', ['Модель s1, s2', 'Модель s1, s2 + интегратор s3', 'Модель + интегратор s3 и объединённая модель s4'][lv - 1], () => G.robSM(R, 4, lv));
+        const ctl = md => F('control.m', 'Синтез LQR по модели ' + ['s1', 's3', 's4'][md - 1], () => G.control(R, md));
+        const mdl = md => F('Rob_model_lqr.m', 'Строит Rob_lqr.slx (get_states, Control, Plant), lqr_mode = ' + md, () => G.modelLQR(R, md));
+        return [
+          { key: 's1', title: 'Регулятор по модели наклона s1', sec: '4.1–4.3', run: 'Rob_model_lqr', figs: ['lr4_s1'],
+            result: `Начальный наклон ψ0 = ${f(P.Psi0)} рад гасится регулятором; в Command Window — Klqr и значения в конце моделирования.`,
+            files: [par, sm(1), cfg0, pre, ctl(1), mdl(1)] },
+          { key: 's3', title: 'Регулятор с интегратором', sec: '4.4', run: 'Rob_model_lqr', figs: ['lr4_s3'],
+            result: 'Статическая ошибка по углу θ устранена.',
+            files: [par, sm(2), cfg0, pre, ctl(2), mdl(2)] },
+          { key: 's4', title: 'Управление движением', sec: '4.5', run: 'Rob_model_lqr', figs: ['lr4_s4'],
+            result: `Робот едет со скоростью θ̇ = ${f(P.vref)} рад/с и поворачивает со скоростью φ̇ = ${f(P.wref)} рад/с, сохраняя равновесие.`,
+            files: [par, sm(3), cfg0, pre, ctl(3), mdl(3)] },
+          { key: 's4_real', title: 'Неидеальные датчики (real_model = 1)', sec: '4.5', run: 'Rob_model_lqr', figs: ['lr4_s4r'],
+            result: 'То же движение с квантованием ШИМ и датчиков: появляются мелкие колебания ψ.',
+            files: [par, sm(3), F('config.m', 'real_model = 1 — квантование ШИМ и датчиков', () => G.config(R, 1)), pre, ctl(3), mdl(3)] }];
+      }
+    }
+    return [];
+  }
+  /* метки «новый» / «изменён» относительно предыдущего шага */
+  function stepsMarked(tab) {
+    const steps = labSteps(tab);
+    let prev = null;
+    for (const st of steps) {
+      st.files.forEach(x => { x.src = x.gen(); });
+      st.files = st.files.map(x => {
+        const p = prev && prev.find(y => y.name === x.name);
+        return Object.assign({}, x, { mark: !prev ? '' : !p ? 'new' : p.src !== x.src ? 'chg' : '' });
+      });
+      prev = st.files;
+    }
+    return steps;
+  }
+  function figNo(tab, id) {
+    const rep = S.R['L' + tab.slice(2)];
+    const k = rep.items.filter(it => it.k === 'plot' && !it.repOnly).findIndex(it => it.id === id);
+    return k < 0 ? '' : tab.slice(2) + '.' + (k + 1);
+  }
+  const stepSlug = (tab, k, st) => 'Etap' + tab.slice(2) + '_shag' + (k + 1) + '_' + st.key;
+  function stepReadme(tab, k, st) {
+    const no = tab.slice(2), figs = (st.figs || []).map(id => 'Рис. ' + figNo(tab, id)).join(', ');
+    const tag = { new: '  [новый]', chg: '  [изменён по сравнению с шагом ' + k + ']', '': '' };
+    return `Этап ${no}, шаг ${k + 1}. ${st.title}
+${S.P.variant ? 'Вариант ' + S.P.variant : 'Пример из методички'}. Разделы на сайте: ${st.sec}.
+
+Что делать:
+ 1. Распакуйте папку и в MATLAB сделайте её текущей (Current Folder).
+ 2. Запустите в Command Window:  ${st.run}
+
+Что получится${figs ? ' (на сайте — ' + figs + ')' : ''}:
+ ${st.result}${figs ? `
+ Рисунки автоматически сохраняются в PNG в папку figures рядом со скриптами
+ (отключить: save_figs = false в начале ${st.run}.m).` : ''}
+
+Файлы на этом шаге:
+${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join('\n')}
+`;
+  }
+  function addStepFiles(zip, tab, k, st, root) {
+    const dir = root + stepSlug(tab, k, st) + '/';
+    for (const x of st.files) zip.file(dir + x.name, x.src || x.gen());
+    zip.file(dir + 'README.txt', stepReadme(tab, k, st));
+  }
   /* ---------- подсказка: что вписать в блоки Simulink ---------- */
   let SIMHINT = {};
   function simHints(tab) {
@@ -774,23 +876,65 @@
     }).join('');
     return `<h2>Блоки модели Simulink</h2><p>Если собираете модель вручную по методичке, впишите в блоки эти значения (копируются кнопкой; копируется числовое значение). Скрипт <code>Rob_model_*.m</code> строит ту же модель автоматически.</p>${blocks}`;
   }
+  /* файлы шагов и итоговые файлы этапа: FSET[ключ] = [{ name, desc, gen }] */
+  let FSET = {}, STEPS = [];
+  const MARK = { new: 'новый', chg: 'изменён' };
+  function fileRows(set, files) {
+    return files.map((f, k) => `<div class="file-row"><div><div class="fn">${esc(f.name)}${f.mark ? `<span class="fmark ${f.mark}">${MARK[f.mark]}</span>` : ''}</div><div class="fd">${esc(f.desc)}</div></div><div class="acts"><button class="btn sm" data-fview="${set}:${k}">Показать</button><button class="btn sm" data-fcopy="${set}:${k}">Копировать</button><button class="btn sm" data-fdl="${set}:${k}">Скачать</button></div><div class="file-view" hidden></div></div>`).join('');
+  }
+  function chips(files) {
+    return `<div class="fchips">${files.map(f => `<span class="fchip${f.mark ? ' ' + f.mark : ''}" title="${esc(f.desc)}">${esc(f.name)}${f.mark ? `<em>${MARK[f.mark]}</em>` : ''}</span>`).join('')}</div>`;
+  }
   function filesPanel(tab) {
-    const files = labFiles(tab);
-    return `<section class="files" aria-label="Файлы для MATLAB"><div class="files-head"><div><h3>Файлы для MATLAB</h3><p>Положите в одну папку и запускайте последний файл списка — он вызывает остальные. Параметры варианта записаны внутри.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-docx="all">${dlIcon()} Отчёт Word</button><button class="btn primary" data-zip="${tab}">${dlIcon()} ZIP этого этапа</button></span></div>
-      ${files.map((f, k) => `<div class="file-row" data-file="${k}"><div><div class="fn"><span class="step-no">${k + 1}</span>${esc(f.path.split('/')[1])}</div><div class="fd">${esc(f.desc)}</div></div><div class="acts"><button class="btn sm" data-fview="${k}">Показать</button><button class="btn sm" data-fcopy="${k}">Копировать</button><button class="btn sm" data-fdl="${k}">Скачать</button></div><div class="file-view" hidden></div></div>`).join('')}</section>`;
+    const steps = STEPS = stepsMarked(tab);
+    const full = labFiles(tab).map(f => ({ name: f.path.split('/')[1], desc: f.desc, gen: f.gen }));
+    FSET = { full };
+    const last = steps[steps.length - 1];
+    const sameAsLast = last && last.files.length === full.length && full.every(x => { const y = last.files.find(z => z.name === x.name); return y && y.src === x.gen(); });
+    const items = steps.map((st, k) => {
+      FSET['s' + k] = st.files;
+      const figs = (st.figs || []).map(id => `<button class="fig-link" data-fig="${id}">Рис. ${figNo(tab, id)}</button>`).join(' ');
+      return `<li class="step">
+        <div class="step-top"><span class="step-no">${k + 1}</span><div class="step-t"><div class="step-sec">Разд. ${esc(st.sec)}</div><h4>${esc(st.title)}</h4></div><button class="btn primary sm" data-szip="${k}">${dlIcon()} Файлы шага (.zip)</button></div>
+        <dl class="step-kv">
+          <dt>Запустить</dt><dd><code class="run">${esc(st.run)}</code><button class="calc-btn" data-run="${k}" title="Копировать команду" aria-label="Копировать команду">${ICON_COPY}</button></dd>
+          <dt>Результат</dt><dd>${figs ? figs + (st.partial ? ' (частично)' : '') + ' — ' : ''}${esc(st.result)}</dd>
+          <dt>Файлы</dt><dd>${chips(st.files)}</dd>
+        </dl>
+        <details class="step-files"><summary>Файлы шага по отдельности</summary>${fileRows('s' + k, st.files)}</details>
+      </li>`;
+    }).join('');
+    const fin = sameAsLast ? '' : `<div class="step-fin"><div class="step-top"><span class="step-no all" aria-hidden="true">✓</span><div class="step-t"><div class="step-sec">Итог</div><h4>Этап целиком</h4></div><button class="btn sm" data-zip="${tab}">${dlIcon()} ZIP этапа</button></div>
+        <p class="fd">${tab === 'lr4' ? 'Универсальные версии файлов: режим регулятора задаётся переменной lqr_mode (1, 2, 3; по умолчанию 3), датчики — real_model в config.m; добавлена проверка без Simulink.' : 'Итоговые версии файлов: скрипт строит все рисунки этапа подряд.'} В архиве также README и отчёт Word.</p>
+        ${chips(full)}
+        <details class="step-files"><summary>Файлы этапа по отдельности</summary>${fileRows('full', full)}</details></div>`;
+    return `<section class="files" aria-label="Файлы для MATLAB"><div class="files-head"><div><h3>Файлы для MATLAB по шагам</h3><p>Каждый шаг — полный набор файлов на этот момент работы. Распакуйте архив шага в отдельную папку, сделайте её текущей в MATLAB и запустите указанную команду: появятся те же графики, что на рисунке этой страницы, а их PNG сохранятся в папку <code>figures</code> (для отчёта).</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-docx="all">${dlIcon()} Отчёт Word</button>${sameAsLast ? `<button class="btn" data-zip="${tab}">${dlIcon()} ZIP этапа + отчёт</button>` : ''}</span></div>
+      <ol class="steps">${items}</ol>${fin}</section>`;
+  }
+  async function zipStep(tab, k, btn) {
+    const st = STEPS[k], zip = new JSZip(), root = varTag() + '/';
+    addStepFiles(zip, tab, k, st, root);
+    btn.disabled = true;
+    const blob = await zip.generateAsync({ type: 'blob' });
+    btn.disabled = false;
+    downloadBlob(varTag() + '_' + stepSlug(tab, k, st) + '.zip', blob);
+    toast('Архив шага ' + (k + 1) + ' сформирован');
   }
   function bindFiles(root) {
-    const files = labFiles(S.tab);
+    const file = id => { const [s, k] = id.split(':'); return FSET[s][+k]; };
     $$('[data-copy]', root).forEach(b => b.onclick = () => copyText(CODE[b.dataset.copy].src));
     $$('[data-sh]', root).forEach(b => b.onclick = () => copyText(SIMHINT[b.dataset.sh], 'Значение скопировано'));
     $$('[data-dl]', root).forEach(b => b.onclick = () => downloadText(CODE[b.dataset.dl].name.replace(/\s*\(.*\)$/, '').replace(/\s+/g, '_') + '.m', CODE[b.dataset.dl].src));
-    $$('[data-fcopy]', root).forEach(b => b.onclick = () => copyText(files[+b.dataset.fcopy].gen()));
-    $$('[data-fdl]', root).forEach(b => b.onclick = () => { const f = files[+b.dataset.fdl]; downloadText(f.path.split('/')[1], f.gen()); });
+    $$('[data-fcopy]', root).forEach(b => b.onclick = () => copyText(file(b.dataset.fcopy).gen()));
+    $$('[data-fdl]', root).forEach(b => b.onclick = () => { const f = file(b.dataset.fdl); downloadText(f.name, f.gen()); });
     $$('[data-fview]', root).forEach(b => b.onclick = () => {
-      const row = b.closest('.file-row'), v = row.querySelector('.file-view'), f = files[+b.dataset.fview];
+      const row = b.closest('.file-row'), v = row.querySelector('.file-view'), f = file(b.dataset.fview);
       if (v.hidden) { v.innerHTML = `<pre class="src">${hl(f.gen())}</pre>`; v.hidden = false; b.textContent = 'Скрыть'; }
       else { v.hidden = true; v.innerHTML = ''; b.textContent = 'Показать'; }
     });
+    $$('[data-szip]', root).forEach(b => b.onclick = () => zipStep(S.tab, +b.dataset.szip, b));
+    $$('[data-run]', root).forEach(b => b.onclick = () => copyText(STEPS[+b.dataset.run].run, 'Команда скопирована'));
+    $$('[data-fig]', root).forEach(b => b.onclick = () => { const el = $('#p-' + b.dataset.fig); if (el) { const fg = el.closest('figure') || el; fg.scrollIntoView({ behavior: 'smooth', block: 'center' }); fg.classList.remove('flash'); void fg.offsetWidth; fg.classList.add('flash'); } });
     $$('[data-zip]', root).forEach(b => b.onclick = () => zipLab(b.dataset.zip, b));
     $$('[data-docx]', root).forEach(b => b.onclick = () => makeDocx(b));
   }
@@ -835,6 +979,7 @@
     try {
       const zip = new JSZip(), root = varTag() + '/';
       for (const t of ALLTABS) addLabFiles(zip, t, root);
+      for (const t of ALLTABS) stepsMarked(t).forEach((st, k) => addStepFiles(zip, t, k, st, root + 'Po_shagam/'));
       zip.file(root + 'README.txt', G.readme(R));
       const keys = [].concat(SIMKEYS.lr2, SIMKEYS.lr3, SIMKEYS.lr4);
       for (let k = 0; k < keys.length; k++) { prog(' Моделирование ' + (k + 1) + '/' + keys.length); await getSim(keys[k]); await sleep(10); if (S.R !== R) throw new Error('Данные изменились во время экспорта'); }
