@@ -22,8 +22,8 @@
   function baseLayout(th, h) {
     return {
       height: h || 300, separators: ', ', margin: { l: 58, r: 14, t: 12, b: 46 }, paper_bgcolor: th.paper, plot_bgcolor: th.bg,
-      font: { family: '"IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif', size: 12, color: th.fg },
-      showlegend: false, hovermode: 'x unified', hoverlabel: { font: { family: '"IBM Plex Mono", monospace', size: 11 } },
+      font: { family: tok('--f-body', '"IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif'), size: 12, color: th.fg },
+      showlegend: false, hovermode: 'x unified', hoverlabel: { font: { family: tok('--f-mono', '"IBM Plex Mono", monospace'), size: 11 } },
       legend: { orientation: 'h', x: 0, y: 1.02, yanchor: 'bottom', bgcolor: 'rgba(0,0,0,0)', font: { size: 11 } }
     };
   }

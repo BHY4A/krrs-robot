@@ -12,7 +12,7 @@
   const vLabel = no => no === 0 ? 'пр.' : String(no);
 
   const LABS_META = [
-    { id: 'data', no: '0', short: 'Данные', t: 'Исходные данные', s: 'Вариант, параметры, отчёт' },
+    { id: 'data', no: '0', short: 'Данные', t: 'Исходные данные', s: 'Параметры, методика, отчёт' },
     { id: 'lr1', no: '1', short: 'Модель', t: 'Математическая модель', s: 'Лагранж, E, F, G, H, I, J, K' },
     { id: 'lr2', no: '2', short: 'Пр. сост.', t: 'Пространство состояний', s: 'A1…D2, устойчивость, рис. 19–20' },
     { id: 'lr3', no: '3', short: 'Системная', t: 'Системная модель', s: 'ШИМ, датчики, Real/Ideal, шины' },
@@ -97,7 +97,7 @@
   }
   function stamp(no) {
     const R = S.R, P = S.P;
-    return `<table class="stamp" aria-label="Штамп"><tr><td class="k">Работа</td><td class="v">${no ? 'Этап ' + no : 'Данные'}</td><td class="k">Лист</td><td class="v">${no || 0} / 5</td></tr>
+    return `<table class="stamp" aria-label="Штамп"><tr><td class="k">Работа</td><td class="v">${+no === 5 ? 'Вопросы' : no ? 'Этап ' + no : 'Данные'}</td><td class="k">Лист</td><td class="v">${+no === 5 ? '—' : no || 0} / 4</td></tr>
       <tr><td class="k">Вариант</td><td class="v">${P.variant || 'пр.'}${isEdited() ? '*' : ''}</td><td class="k">n</td><td class="v">${fnum(P.n)}</td></tr>
       <tr><td class="k">Робот</td><td class="v" colspan="3">M = ${fnum(P.M)} кг, h = ${fnum(P.h)} м, R = ${fnum(P.R)} м</td></tr>
       <tr><td class="k">Двигатель</td><td class="v" colspan="3">Rm = ${fnum(P.Rm)} Ом, Kt = ${fnum(P.Kt)}, Kb = ${fnum(P.Kb)}</td></tr></table>`;
@@ -354,7 +354,7 @@
       </header>
       <div class="sheet-body rep data-page">
         <section class="dsec">
-          <h2>1. Параметры робота</h2>
+          <h2>1. Параметры варианта</h2>
           <div class="form-grid fg4">${FIELDS.map(f => fld(f[0], f[1], f[2], f[3], P[f[0]], +V[f[0]] !== +P[f[0]])).join('')}</div>
           <div class="dact"><button class="btn" id="reset-var">Сбросить к ${P.variant ? 'варианту ' + P.variant : 'примеру'}</button><button class="btn" id="go-lr1">Перейти к этапу 1 →</button></div>
           <details class="adv"><summary>Таблица вариантов — все ${VMAX} вариантов и пример (щелчок по строке выбирает вариант)</summary><div class="in"><div class="tbl var-table"><table><thead><tr><th class="num">№</th>${['m', 'R', 'M', 'W', 'D', 'h', 'fw', 'fm', 'Jm', 'Rm', 'Kb', 'Kt', 'n'].map(k => `<th class="num">${k}</th>`).join('')}</tr></thead><tbody>${vrows}</tbody></table></div></div></details>
@@ -951,6 +951,7 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
     ta.remove();
   }
   function downloadBlob(name, blob) {
+    if (window.SUITE && SUITE.save) return SUITE.save(name, blob);   // общий механизм (suite.js): сайт или артефакт claude.ai
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
@@ -1190,12 +1191,13 @@ ${parts.join('\n')}</body></html>`;
     $('#var-next').onclick = () => setVariant(S.P.variant + 1);
     $('#share').onclick = share;
     $('#theme').onclick = themeToggle;
+    window.addEventListener('suite:style', () => { if (S.tab !== 'data') renderTab(); });   // новый стиль — перерисовать графики в его цветах и шрифтах
     const setTopH = () => document.documentElement.style.setProperty('--top-h', $('.top').offsetHeight + 'px');
     window.addEventListener('resize', setTopH); setTopH();
     load(); loadT();
     const au = getAuto();
     if (S.shared) { S.skipAuto = true; recompute(); toast('Открыт расчёт по ссылке'); }
-    else if (au && au.P) {
+    else if (au && au.P && !/^#v\d/.test(location.hash || '')) {   // ссылка с вариантом открывается сразу, без вопроса об автосохранении
       S.P = L.fromVariant(1); S.T = Object.assign({}, T_DEF); S.tab = 'data';
       S.skipAuto = true; recompute();
       askResume(au);
