@@ -223,6 +223,14 @@
       const on = !!S.P.kpwmRound, P = S.P, x = P.PWMmax / P.Upit;
       return { la: 'Точно', a: F('K<sub>PWM</sub> = ' + P.PWMmax + '/' + fnum(P.Upit) + ' = ' + fnum(x, 8)), lb: 'До 0,01 (как в методичке)', b: F('K<sub>PWM</sub> = ' + fnum(Math.round(x * 100) / 100, 6)), b_on: on };
     },
+    eqNum() {
+      const page = on => `<div class="ex-paper"><p>Коэффициент передачи двигателя от напряжения к моменту на колесе:</p><div class="ex-math">α = nK<sub>t</sub>/R<sub>m</sub> = ${fnum(S.R.md.alpha)} Н·м/В${on ? '<span class="ex-no">(4)</span>' : ''}</div></div>`;
+      return { la: 'Без номеров (как в методичке)', a: page(false), lb: 'С номерами', b: page(true), b_on: !!S.T.eqNum };
+    },
+    line1() {
+      const t = 'Робот-балансир — перевёрнутый маятник на двух колёсах: корпус с двигателями удерживается в вертикальном положении за счёт управления моментом на колёсах по сигналам энкодеров и гироскопа.';
+      return { la: 'Интервал 1,5', a: `<div class="ex-paper lh15"><p>${t}</p></div>`, lb: 'Интервал 1,0', b: `<div class="ex-paper lh10"><p>${t}</p></div>`, b_on: !!S.T.line1 };
+    },
     logo() {
       const page = l => `<div class="ex-paper title">${l ? '<b class="ex-logo">КНИТУ</b>' : ''}<p>МИНОБРНАУКИ РОССИИ</p><p>Федеральное государственное бюджетное образовательное учреждение высшего образования</p><p>«Казанский национальный исследовательский технологический университет»</p></div>`;
       return { la: 'Без логотипа', a: page(false), lb: 'С логотипом', b: page(true), b_on: !!S.T.logo };
@@ -359,7 +367,7 @@
           <div class="dact"><button class="btn" id="reset-var">Сбросить к ${P.variant ? 'варианту ' + P.variant : 'примеру'}</button><button class="btn" id="go-lr1">Перейти к этапу 1 →</button></div>
           <details class="adv"><summary>Таблица вариантов — все ${VMAX} вариантов и пример (щелчок по строке выбирает вариант)</summary><div class="in"><div class="tbl var-table"><table><thead><tr><th class="num">№</th>${['m', 'R', 'M', 'W', 'D', 'h', 'fw', 'fm', 'Jm', 'Rm', 'Kb', 'Kt', 'n'].map(k => `<th class="num">${k}</th>`).join('')}</tr></thead><tbody>${vrows}</tbody></table></div></div></details>
         </section>
-        <section class="dsec">
+        <section class="dsec set set-calc" data-set="настройки расчёта">
           <h2>2. Методика расчёта</h2>
           <p class="dlead">Как округлять и как устроена модель с неидеальностями. Значения по умолчанию воспроизводят методичку.</p>
           <div class="opts">
@@ -370,7 +378,7 @@
           <details class="adv"><summary>Константы модели и моделирования (g, ШИМ, ψ₀, уставки, шаг, веса LQR)</summary><div class="in"><div class="form-grid">${ADV.map(f => fld(f[0], f[1], f[2], f[3], P[f[0]], String(DEF[f[0]]) !== String(P[f[0]]))).join('')}</div>
             <p class="dhint">По умолчанию — значения методички: g = 9,81 м/с², U<sub>пит</sub> = 12 В, ШИМ ±127, ψ<sub>0</sub> = 0,01 рад, уставки скоростей 1 рад/с, Q = eye(n), R = eye(2). Шаг «auto» = ${fnum(R.dtAuto)} с — меньше постоянной времени быстрейшего полюса замкнутой системы (1/|p|<sub>max</sub> = ${fnum(1 / R.pmax)} с); он же задаётся решателю ode4 в генерируемой модели.</p></div></details>
         </section>
-        <section class="dsec">
+        <section class="dsec set set-rep" data-set="настройки отчёта">
           <h2>3. Отчёт и файлы</h2>
           <h3>Титульный лист</h3>
           <div class="form-grid fg4">
@@ -395,7 +403,7 @@
           <div class="dact"><button class="btn" id="zip-all">${dlIcon()} Архив работы (.zip)</button></div>
           <p class="dhint">Архив: скрипты MATLAB по этапам (как в методичке и для автоматической сборки моделей Simulink), те же скрипты по шагам в папке Po_shagam (каждая папка — набор файлов, после запуска которого получается соответствующий рисунок сайта), отчёт Word, полный расчёт в HTML, графики PNG и данные CSV. Архив отдельного шага скачивается на странице этапа.</p>
         </section>
-        <section class="dsec">
+        <section class="dsec set set-saves" data-set="сохранения">
           <h2>4. Сохранения</h2>
           <p class="dlead">Текущее состояние запоминается автоматически и восстанавливается при следующем открытии сайта; отдельно ведётся автосохранение. Чтобы держать несколько наборов (например, свой вариант и вариант одногруппника), сохраните их в слоты.</p>
           <div class="opts slots" id="slots">${slotsHtml()}</div>
@@ -583,7 +591,7 @@
     main.innerHTML = `<article class="sheet">
       <header class="sheet-head"><div><div class="eyebrow">${isQ ? 'Подготовка к защите' : 'Лабораторная работа · этап ' + no}</div><h1>${esc(TITLES[tab])}</h1><p class="lead">${leadText(tab)}</p></div>${stamp(no)}</header>
       <div class="sheet-body rep${isQ ? ' qa' : ''}">${isQ ? '' : `<div class="kpis">${kpis(tab)}</div><p class="calc-hint">${ICON_COPY} у каждой формулы копирует её в формате MathML — в Word вставляется как редактируемое уравнение (Ctrl+V). Кнопка «TeX» копирует LaTeX.</p>`}
-        ${tab === 'lr1' ? `<div class="opts chk-bar"><div class="opt"><div class="opt-t"><b>Сверка с ручным расчётом</b><span id="chk-sum">${CHK.on ? '' : 'Под каждой формулой появится поле для вашего значения: утилита сравнит его и подскажет возможную причину расхождения — округление, единицы, знак или ошибка в подстановке.'}</span></div><div class="opt-c" style="display:flex;gap:10px;align-items:center">${CHK.on ? '<button class="btn" id="chk-clr">Очистить</button>' : ''}<label class="sw"><input type="checkbox" id="chk-on" ${CHK.on ? 'checked' : ''}><span class="track" aria-hidden="true"></span><span class="sr">Сверка</span></label></div></div></div>` : ''}
+        ${tab === 'lr1' ? `<div class="opts chk-bar"><div class="opt"><div class="opt-t"><b>Сверка с ручным расчётом</b><span id="chk-sum">${CHK.on ? '' : 'Под каждой формулой появится поле для вашего значения: утилита сравнит его и подскажет возможную причину расхождения — округление, единицы, знак или ошибка в подстановке.'}</span></div><div class="opt-c" style="display:flex;gap:10px;align-items:center">${CHK.on ? '<button class="btn" id="chk-clr">Очистить</button>' : ''}<label class="sw"><input type="checkbox" id="chk-on" ${CHK.on ? 'checked' : ''}><span class="track" aria-hidden="true"></span><span class="sr">Сверка</span></label></div>${CHK.on || !window.SUITE || !SUITE.chkEx ? '' : SUITE.chkEx('α = nK<sub>t</sub>/R<sub>m</sub> = ' + fnum(S.R.md.alpha) + ' Н·м/В', fnum(S.R.md.alpha))}</div></div>` : ''}
         ${renderItems(rep.items, tab)}${isQ ? '' : simHints(tab) + filesPanel(tab)}
         <div style="display:flex;justify-content:space-between;gap:8px;margin-top:22px;flex-wrap:wrap">${+no > 1 ? `<button class="btn" data-go="lr${+no - 1}">← Этап ${+no - 1}</button>` : '<span></span>'}${+no < 5 ? `<button class="btn" data-go="lr${+no + 1}">${+no + 1 === 5 ? 'Контрольные вопросы' : 'Этап ' + (+no + 1)} →</button>` : ''}</div>
       </div></article>`;
