@@ -60,7 +60,7 @@
         case 'tex': {
           const d = opt.explain && root.EXPLAIN ? EXPLAIN.texDesc(it.desc) : '';
           if (d) doc.html(symHtml(d.replace(/\.$/, ':')), { keepNext: true });
-          emitMath(doc, it.t, ctx); break;
+          emitMath(doc, it.t, ctx, opt.eqNum ? String(opt._eq = (opt._eq || 0) + 1) : null); break;
         }
         case 'eq': {
           let s = it.lhs;
@@ -69,7 +69,7 @@
           s += '=' + ctx.L.n(it.val, it.sig) + (it.unit ? '\\ \\text{' + it.unit + '}' : '');
           const d = opt.explain && root.EXPLAIN ? EXPLAIN.eqDesc(it.lhs) : '';
           if (d) doc.html(symHtml(d.replace(/\.$/, ':')), { keepNext: true });
-          emitMath(doc, s, ctx); break;
+          emitMath(doc, s, ctx, opt.eqNum ? String(opt._eq = (opt._eq || 0) + 1) : null); break;
         }
         case 'check':
           doc.raw(`<w:p>${doc.pPr({ indent: 709 })}${doc.runs('Проверка: ')}${ctx.omml(it.tex, true)}${doc.runs(' — ' + lc(it.t || (it.ok ? 'выполняется' : 'не выполняется')).replace(/\.?$/, '.'))}</w:p>`); break;
@@ -175,9 +175,13 @@
     lines.push(cur);
     return lines.map(t => ({ t, size: W(t) > LIMIT ? Math.max(16, Math.floor(28 * LIMIT / W(t))) : 28 }));
   }
-  function emitMath(doc, tex, ctx) {
+  /* num — сквозной номер формулы у правого края последней строки; null — без номера */
+  function emitMath(doc, tex, ctx, num) {
     const lines = fitMath(tex, ctx);
-    for (const l of lines) doc.math(ctx.omml(l.t, false, l.size || 28), l !== lines[lines.length - 1] ? { keepNext: true } : {});
+    lines.forEach((l, k) => {
+      const om = ctx.omml(l.t, false, l.size || 28), last = k === lines.length - 1;
+      if (num && last) doc.mathNum(om, num, false); else doc.math(om, last ? {} : { keepNext: true });
+    });
   }
   function symHtml(t) {
     let s = t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -201,7 +205,7 @@
 
   async function build(ctx, T, opt) {
     READ = opt.readable !== false;
-    const doc = new DOCX.Doc({ readable: READ, italVars: true, codePlain: !!opt.codePlain });
+    const doc = new DOCX.Doc({ readable: READ, italVars: true, codePlain: !!opt.codePlain, line: opt.line1 ? 240 : 360 });
     const P = ctx.S.P, R = ctx.S.R;
     titlePage(doc, T);
     doc.p('Цель работы', { style: 'Heading2', pageBreakBefore: true });

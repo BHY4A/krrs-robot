@@ -31,7 +31,7 @@
     org: 'МИНОБРНАУКИ РОССИИ\nФедеральное государственное бюджетное образовательное учреждение\nвысшего образования\n«Казанский национальный исследовательский технологический университет»\n(ФГБОУ ВО «КНИТУ»)',
     dept: '', discipline: 'Конструирование роботов и робототехнических систем', kind: 'лабораторной работе', title: '',
     group: '741-15', student: '', teacher: 'Малев Н. А.', city: 'Казань', year: String(new Date().getFullYear()),
-    logo: true, explain: true, listings: false, readable: true, watermark: true, codePlain: true, questions: true
+    logo: true, explain: true, listings: false, readable: true, watermark: true, codePlain: true, eqNum: false, line1: false, questions: true
   };
   function loadT() { let t = null; try { t = JSON.parse(localStorage.getItem('rb-title') || 'null'); } catch (e) { t = null; } S.T = Object.assign({}, T_DEF, t || {}); }
   function saveT() { try { localStorage.setItem('rb-title', JSON.stringify(S.T)); } catch (e) { /* ignore */ } autoSave(); }
@@ -386,6 +386,8 @@
             ${optRow('Ответы на контрольные вопросы', 'Отдельный раздел в конце отчёта.', sw('questions'))}
             ${optRow('Шрифт программного кода', 'Листинги MATLAB.', seg('T', 'codePlain', !!S.T.codePlain, [[true, 'Times New Roman'], [false, 'Courier New']], 'bool'))}
             ${optRow('Подложка на рисунках', '«Замените рисунком из MATLAB» — что и откуда вставить.', sw('watermark'))}
+            ${optRow('Номера формул', 'Сквозные номера (1), (2)… у правого края строки — не путаются со ссылками на формулы методички вида (1.11). Выключено — без номеров, как в методичке.', sw('eqNum'))}
+            ${optRow('Межстрочный интервал', 'Основной текст отчёта; титульный лист не меняется.', seg('T', 'line1', !!S.T.line1, [[false, '1,5'], [true, '1,0']], 'bool'))}
             ${optRow('Улучшение читаемости', 'Не разрывать абзацы, списки, листинги и пояснение с формулой между страницами.', sw('readable'))}
           </div>
           <h3>Скачать</h3>
@@ -1108,7 +1110,7 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
     document.body.appendChild(meas);
     const measure = t => { meas.innerHTML = katex.renderToString(texify(t), { displayMode: true, throwOnError: false, strict: 'ignore' }); const k = meas.querySelector('.katex'); return k ? k.getBoundingClientRect().width : 0; };
     const ctx = { S, L, omml, png, simRows: rowsSim, labFiles, measure };
-    try { return await REPORT.build(ctx, S.T, { explain: S.T.explain, listings: S.T.listings, readable: S.T.readable, codePlain: S.T.codePlain, questions: S.T.questions }); } finally { meas.remove(); }
+    try { return await REPORT.build(ctx, S.T, { explain: S.T.explain, listings: S.T.listings, readable: S.T.readable, codePlain: S.T.codePlain, questions: S.T.questions, eqNum: !!S.T.eqNum, line1: !!S.T.line1 }); } finally { meas.remove(); }
   }
   function docxName() { return 'Otchet_Robot_' + (S.P.variant ? 'var' + S.P.variant : 'primer') + '.docx'; }
   async function makeDocx(btn) {
