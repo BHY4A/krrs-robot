@@ -199,7 +199,7 @@
   }
   function exHtml(key) {
     const d = PV[key]();
-    const box = (lbl, body, on) => `<div class="ex${on ? ' on' : ''}"><div class="ex-h">${lbl}${on ? '<span>сейчас</span>' : ''}</div><div class="ex-b">${body}</div></div>`;
+    const box = (lbl, body, on) => `<div class="ex${on ? ' on' : ''}"><div class="ex-h"><span class="ex-l">${lbl}</span>${on ? '<span class="ex-now">сейчас</span>' : ''}</div><div class="ex-b">${body}</div></div>`;
     if (d.table) return `<div class="ex on ex-wide"><div class="ex-b">${d.table}</div></div>`;
     return box(d.la, d.a, !d.b_on) + box(d.lb, d.b, d.b_on) + (d.note ? `<p class="ex-note">${d.note}</p>` : '');
   }
@@ -245,7 +245,7 @@
     },
     codePlain() {
       const code = 'enc_l = rad2deg(y(1) - W/R/2*y(5) - y(2));\ngyro  = rad2deg(y(4));';
-      return { la: 'Courier New', a: `<div class="ex-paper"><pre class="mono">${code}</pre></div>`, lb: 'Times New Roman', b: `<div class="ex-paper"><pre class="serif">${code}</pre></div>`, b_on: !!S.T.codePlain };
+      return { la: 'Times New Roman', a: `<div class="ex-paper"><pre class="serif">${code}</pre></div>`, lb: 'Courier New', b: `<div class="ex-paper"><pre class="mono">${code}</pre></div>`, b_on: !S.T.codePlain };
     },
     watermark() {
       const fig = w => `<div class="ex-paper fig"><svg viewBox="0 0 300 110" preserveAspectRatio="none"><path d="M30 8V100H295" fill="none" stroke="#7d8996"/><path d="M30 20 L45 70 Q60 100 80 80 T120 62 T170 58 L295 58" fill="none" stroke="#0072BD" stroke-width="2"/></svg>${w ? '<div class="ex-wm"><b>Замените рисунком из MATLAB</b><span>Что вставить: переходные процессы с LQR.</span><span>Откуда: Rob_model_lqr.m — figure «Этап 4».</span></div>' : ''}<p class="cap">Рисунок 4.3 — Переходные процессы</p></div>`;
