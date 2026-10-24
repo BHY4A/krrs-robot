@@ -683,6 +683,36 @@ if save_figs, save_png(fh, 'Ris_4_check_bez_Simulink'); end
     return [];
   }
 
-  const api = { params, robSM, config, preload, control, raschet, modelSS, modelSys, modelLQR, lqrCheck, readme, hints };
+  /* удаление комментариев из кода MATLAB: строки «% …», «%% …», блоки %{ … %}, хвосты после «...»;
+   * текст в кавычках ('…', "…") не трогается, апостроф после имени/скобки — транспонирование, а не строка */
+  function strip(src) {
+    const out = [];
+    let blk = 0;
+    for (const line of String(src).split('\n')) {
+      const t = line.trim();
+      if (t === '%{') { blk++; continue; }
+      if (blk) { if (t === '%}') blk--; continue; }
+      let code = '', i = 0, cut = false;
+      while (i < line.length) {
+        const ch = line[i];
+        if (ch === '%') { cut = true; break; }
+        if (ch === '.' && line.startsWith('...', i)) { code += '...'; cut = true; break; }
+        if (ch === '"' || (ch === "'" && !/[\w)\]}.'"]/.test(line[i - 1] || ''))) {
+          let j = i + 1;
+          while (j < line.length) { if (line[j] === ch) { if (line[j + 1] === ch) { j += 2; continue; } break; } j++; }
+          code += line.slice(i, j + 1); i = j + 1; continue;
+        }
+        code += ch; i++;
+      }
+      code = code.replace(/\s+$/, '');
+      if (cut && !code.trim()) continue;   // строка была только комментарием
+      if (!code && (!out.length || out[out.length - 1] === '')) continue;   // без пустых строк подряд и в начале
+      out.push(code);
+    }
+    while (out.length && out[out.length - 1] === '') out.pop();
+    return out.join('\n') + (/\n$/.test(src) ? '\n' : '');
+  }
+
+  const api = { params, robSM, config, preload, control, raschet, modelSS, modelSys, modelLQR, lqrCheck, readme, hints, strip };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MATGEN = api;
 })(typeof window !== 'undefined' ? window : globalThis);

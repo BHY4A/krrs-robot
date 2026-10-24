@@ -85,7 +85,7 @@
           break;
         }
         case 'code':
-          codeOut(doc, 'Листинг ' + no + '.' + (++cnt.lst) + ' — ' + (it.title || ''), it.t);
+          codeOut(doc, 'Листинг ' + no + '.' + (++cnt.lst) + ' — ' + (it.title || ''), ctx.mcode ? ctx.mcode(it.t, it.lang) : it.t);
           doc.p('', {});
           break;
         case 'plot': case 'diagram': {

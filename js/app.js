@@ -31,7 +31,7 @@
     org: 'МИНОБРНАУКИ РОССИИ\nФедеральное государственное бюджетное образовательное учреждение\nвысшего образования\n«Казанский национальный исследовательский технологический университет»\n(ФГБОУ ВО «КНИТУ»)',
     dept: '', discipline: 'Конструирование роботов и робототехнических систем', kind: 'лабораторной работе', title: '',
     group: '741-15', student: '', teacher: 'Малев Н. А.', city: 'Казань', year: String(new Date().getFullYear()),
-    logo: true, explain: true, listings: false, readable: true, watermark: true, codePlain: true, eqNum: false, line1: false, questions: true
+    logo: true, explain: true, listings: false, readable: true, watermark: true, codePlain: true, codeNoCm: false, eqNum: false, line1: false, questions: true
   };
   function loadT() { let t = null; try { t = JSON.parse(localStorage.getItem('rb-title') || 'null'); } catch (e) { t = null; } S.T = Object.assign({}, T_DEF, t || {}); }
   function saveT() { try { localStorage.setItem('rb-title', JSON.stringify(S.T)); } catch (e) { /* ignore */ } autoSave(); }
@@ -247,6 +247,11 @@
       const code = 'enc_l = rad2deg(y(1) - W/R/2*y(5) - y(2));\ngyro  = rad2deg(y(4));';
       return { la: 'Times New Roman', a: `<div class="ex-paper"><pre class="serif">${code}</pre></div>`, lb: 'Courier New', b: `<div class="ex-paper"><pre class="mono">${code}</pre></div>`, b_on: !S.T.codePlain };
     },
+    codeNoCm() {
+      const src = "% Синтез LQR-регулятора по модели s4\nQQ = eye(7);   % веса состояний\nRR = eye(2);   % веса управлений\nKlqr = lqr(s4, QQ, RR);\nfprintf('K(1,1) = %.4f\\n', Klqr(1,1));   % проверка";
+      const pre = s => `<div class="ex-paper"><pre class="mono">${esc(s)}</pre></div>`;
+      return { la: 'С комментариями', a: pre(src), lb: 'Без комментариев', b: pre(G.strip(src)), b_on: !!S.T.codeNoCm };
+    },
     watermark() {
       const fig = w => `<div class="ex-paper fig"><svg viewBox="0 0 300 110" preserveAspectRatio="none"><path d="M30 8V100H295" fill="none" stroke="#7d8996"/><path d="M30 20 L45 70 Q60 100 80 80 T120 62 T170 58 L295 58" fill="none" stroke="#0072BD" stroke-width="2"/></svg>${w ? '<div class="ex-wm"><b>Замените рисунком из MATLAB</b><span>Что вставить: переходные процессы с LQR.</span><span>Откуда: Rob_model_lqr.m — figure «Этап 4».</span></div>' : ''}<p class="cap">Рисунок 4.3 — Переходные процессы</p></div>`;
       return { la: 'Без подложки', a: fig(false), lb: 'С подложкой', b: fig(true), b_on: !!S.T.watermark };
@@ -393,6 +398,7 @@
             ${optRow('Листинги программ MATLAB', 'Скрипты этапа в конце его раздела.', sw('listings'))}
             ${optRow('Ответы на контрольные вопросы', 'Отдельный раздел в конце отчёта.', sw('questions'))}
             ${optRow('Шрифт программного кода', 'Листинги MATLAB.', seg('T', 'codePlain', !!S.T.codePlain, [[true, 'Times New Roman'], [false, 'Courier New']], 'bool'))}
+            ${optRow('Комментарии в коде MATLAB', 'Скрипты .m на сайте, в архивах и в листингах отчёта, код блока MATLAB Function. «Без комментариев» убирает строки «%&nbsp;…», блоки %{убирает строки «% …», блоки %{ … %}nbsp;…убирает строки «% …», блоки %{ … %}nbsp;%} и пояснения после кода; текст в кавычках (форматы fprintf, подписи графиков) и сам код не меняются.', seg('T', 'codeNoCm', !!S.T.codeNoCm, [[false, 'С комментариями'], [true, 'Без комментариев']], 'bool'))}
             ${optRow('Подложка на рисунках', '«Замените рисунком из MATLAB» — что и откуда вставить.', sw('watermark'))}
             ${optRow('Номера формул', 'Сквозные номера (1), (2)… у правого края строки — не путаются со ссылками на формулы методички вида (1.11). Выключено — без номеров, как в методичке.', sw('eqNum'))}
             ${optRow('Межстрочный интервал', 'Основной текст отчёта; титульный лист не меняется.', seg('T', 'line1', !!S.T.line1, [[false, '1,5'], [true, '1,0']], 'bool'))}
@@ -747,14 +753,17 @@
   }
   let codeSeq = 0;
   const CODE = {};
-  function codeBlock(src, name) {
+  /* код MATLAB с комментариями или без — по настройке «Комментарии в коде MATLAB» */
+  const mcode = (src, lang) => S.T.codeNoCm && (lang || 'matlab') === 'matlab' ? G.strip(src) : src;
+  function codeBlock(src, name, lang) {
+    src = mcode(src, lang);
     const id = 'code' + (++codeSeq); CODE[id] = { src, name };
     return `<div class="code"><div class="code-head"><span class="fn">${esc(name)}</span><span class="acts"><button class="btn sm" data-copy="${id}">Копировать</button><button class="btn sm" data-dl="${id}">Скачать</button></span></div><pre class="src">${hl(src)}</pre></div>`;
   }
   const FOLDER = { lr1: 'Etap1_Model', lr2: 'Etap2_StateSpace', lr3: 'Etap3_SystemModel', lr4: 'Etap4_LQR' };
   function labFiles(tab) {
     const R = S.R, d = FOLDER[tab];
-    const f = (name, desc, gen) => ({ path: d + '/' + name, desc, gen, lang: name.endsWith('.txt') ? 'txt' : 'matlab' });
+    const f = (name, desc, gen) => { const lang = name.endsWith('.txt') ? 'txt' : 'matlab'; return { path: d + '/' + name, desc, gen: () => mcode(gen(), lang), lang }; };
     switch (tab) {
       case 'lr1': return [f('rob_raschet.m', 'Моменты инерции, α, β, матрицы E, F, G, H и коэффициенты I, J, K (вывод в Command Window)', () => G.raschet(R))];
       case 'lr2': return [f('parametrs_Rob.m', 'Исходные данные робота — как в методичке (g_sign = −1 — «подвешенный» робот)', () => G.params(R, 2)),
@@ -776,7 +785,7 @@
    * run — что запустить; figs — рисунки сайта, которые увидит студент; files — состояние папки на этом шаге */
   function labSteps(tab) {
     const R = S.R, P = S.P, f = fnum;
-    const F = (name, desc, gen) => ({ name, desc, gen });
+    const F = (name, desc, gen) => ({ name, desc, gen: () => mcode(gen(), name.endsWith('.m') ? 'matlab' : 'txt') });
     switch (tab) {
       case 'lr1': return [
         { key: 'raschet', title: 'Расчёт параметров модели', sec: '1.2–1.6', run: 'rob_raschet',
@@ -1117,7 +1126,7 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
     const meas = document.createElement('div'); meas.style.cssText = 'position:absolute;left:-20000px;top:0;visibility:hidden;white-space:nowrap;font-size:18.67px';
     document.body.appendChild(meas);
     const measure = t => { meas.innerHTML = katex.renderToString(texify(t), { displayMode: true, throwOnError: false, strict: 'ignore' }); const k = meas.querySelector('.katex'); return k ? k.getBoundingClientRect().width : 0; };
-    const ctx = { S, L, omml, png, simRows: rowsSim, labFiles, measure };
+    const ctx = { S, L, omml, png, simRows: rowsSim, labFiles, mcode, measure };
     try { return await REPORT.build(ctx, S.T, { explain: S.T.explain, listings: S.T.listings, readable: S.T.readable, codePlain: S.T.codePlain, questions: S.T.questions, eqNum: !!S.T.eqNum, line1: !!S.T.line1 }); } finally { meas.remove(); }
   }
   function docxName() { return 'Otchet_Robot_' + (S.P.variant ? 'var' + S.P.variant : 'primer') + '.docx'; }
