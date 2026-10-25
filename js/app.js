@@ -277,8 +277,11 @@
     let tip = null;
     const show = (g, x, y) => {
       if (!tip) { tip = document.createElement('div'); tip.className = 'tipbox'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
-      const [nm, d] = g.dataset.tip.split('|');
-      tip.innerHTML = `<small>Блок в Simulink</small><b>${esc(nm)}</b>${d ? `<span>${esc(d)}</span>` : ''}`;
+      let t; try { t = JSON.parse(g.dataset.tip); } catch (e) { const [n, d] = g.dataset.tip.split('|'); t = { n, d }; }
+      tip.className = 'tipbox sl-tip';
+      const rows = (t.p || []).map(r => `<tr><td>${esc(r[0])}</td><td>${r[1].length > 28 ? `<span>${esc(r[1])}</span>` : esc(r[1])}</td><td>${esc(r[2] || '')}</td></tr>`).join('');
+      tip.innerHTML = `<small>Блок Simulink</small><b>${esc(t.n)}</b>${t.lib ? `<span class="tl">Library Browser: Simulink / ${esc(t.lib.replace(/\//g, ' / '))}</span>` : ''}${t.d ? `<span>${esc(t.d)}</span>` : ''}` +
+        (rows ? `<table><tr><th>Поле</th><th>Ввести</th><th>Откуда</th></tr>${rows}</table>` : (t.lib ? '<span class="tl">Параметры по умолчанию — менять ничего не нужно</span>' : ''));
       tip.style.display = 'block';
       const w = tip.offsetWidth, h = tip.offsetHeight;
       tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2)) + 'px';
@@ -489,7 +492,7 @@
         case 'table': h += `<div class="tbl"><table>${it.caption ? `<caption>${esc(it.caption)}</caption>` : ''}<thead><tr>${it.head.map(c => `<th>${cell(c)}</th>`).join('')}</tr></thead><tbody>${it.rows.map(r => `<tr>${r.map(c => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; break;
         case 'code': h += codeBlock(it.t, it.title, it.lang); break;
         case 'plot': fig++; h += `<figure class="fig"><div class="plot" id="p-${it.id}"><div class="plot-wait"><span><span class="spinner"></span>Моделирование…</span></div></div><figcaption><span><b>Рис. ${tab.slice(2)}.${fig}.</b> ${esc(it.title)}</span></figcaption></figure>`; break;
-        case 'diagram': h += `<div class="diagram" id="d-${it.id}"><p class="dcap">${esc(it.title)}<span class="dhint-r">наведите на блок — его имя в Simulink</span></p>${diagramSvg(it.id)}</div>`; break;
+        case 'diagram': h += `<div class="diagram" id="d-${it.id}"><p class="dcap">${esc(it.title)}<span class="dhint-r">наведите на блок — что ввести в его параметрах</span></p>${diagramSvg(it.id)}</div>`; break;
         case 'simres': h += `<div class="tbl" id="s-${it.id}"><table><caption>${esc(it.title)}</caption><tbody><tr><td><span class="spinner"></span>Идёт моделирование…</td></tr></tbody></table></div>`; break;
       }
     }
@@ -1034,7 +1037,7 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
       return { data: url.split(',')[1], w: 900, h };
     } finally { try { Plotly.purge(host); } catch (e) { /* ignore */ } host.remove(); }
   }
-  const SVG_STYLE = '<style>.wire{fill:none;stroke:#000;stroke-width:1.1}.arrowhead{fill:#000}.blk,.sum{fill:#fff;stroke:#000;stroke-width:1.1}.bar{fill:#000}.ic{fill:none;stroke:#000;stroke-width:1.1}.ic.thin{stroke-width:.6;stroke:#555}.bt{font:11.5px "Courier New",monospace;fill:#000}.bt.sm{font-size:11px}.bt.tiny{font-size:9px}.bt.big{font-size:18px}.frac{stroke:#000;stroke-width:1}.cap{font:10.5px Arial,sans-serif;fill:#333}.sg{font:600 10px "Courier New",monospace;fill:#000}.lbl{font:italic 11.5px "Times New Roman",serif;fill:#000}.dot{fill:#000}</style>';
+  const SVG_STYLE = '<style>.wire{fill:none;stroke:#000;stroke-width:1.1}.arrowhead{fill:#000}.blk,.sum{fill:#fff;stroke:#000;stroke-width:1.1}.bar{fill:#000}.ic{fill:none;stroke:#000;stroke-width:1.1}.ic.thin{stroke-width:.6;stroke:#555}.bt{font:11.5px "Courier New",monospace;fill:#000}.bt.sm{font-size:11px}.bt.tiny{font-size:9px}.bt.gv{font-size:10.5px}.bt.big{font-size:18px}.frac{stroke:#000;stroke-width:1}.cap{font:10.5px Arial,sans-serif;fill:#333}.sg{font:600 10px "Courier New",monospace;fill:#000}.lbl{font:italic 11.5px "Times New Roman",serif;fill:#000}.dot{fill:#000}</style>';
   function svgPng(id) {
     return new Promise((res, rej) => {
       let svg = diagramSvg(id);

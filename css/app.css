@@ -52,7 +52,7 @@
 }
 
 /* подсказка над схемами Simulink на сенсорных экранах */
-@media (hover: none) { .dhint-r::before { content: "нажмите на блок — его имя в Simulink"; } .dhint-r { font-size: 0; } .dhint-r::before { font-size: 12px; } }
+@media (hover: none) { .dhint-r::before { content: "нажмите на блок — что ввести в его параметрах"; } .dhint-r { font-size: 0; } .dhint-r::before { font-size: 12px; } }
 
 /* схемы в стиле Simulink (slsvg.js) */
 svg.ssdm.sl .blk { fill: var(--sheet); stroke: var(--fg); stroke-width: 1.1; }
@@ -67,3 +67,16 @@ svg.ssdm.sl .cap { font: 10.5px var(--f-body); fill: var(--muted); }
 svg.ssdm.sl .sg { font: 600 10px var(--f-mono); fill: var(--fg); }
 svg.ssdm.sl .lbl.sig { font: italic 11.5px var(--f-body); fill: var(--accent-2); }
 svg.ssdm.sl .hv:hover .blk, svg.ssdm.sl .hv:focus .blk { stroke: var(--accent); stroke-width: 2; }
+svg.ssdm.sl .bt.gv { font-size: 10.5px; }
+/* схема вписывается в ширину страницы; на узком экране — прокрутка, чтобы текст не стал мелким */
+.diagram svg.ssdm.sl { width: 100%; height: auto; }
+/* подсказка блока: имя, библиотека, поля окна параметров */
+.tipbox.sl-tip { max-width: min(460px, calc(100vw - 16px)); }
+.tipbox.sl-tip .tl { display: block; font-size: 10.5px; color: var(--muted); margin-bottom: 4px; }
+.tipbox.sl-tip table { border-collapse: collapse; margin-top: 6px; width: 100%; font-size: 12px; }
+.tipbox.sl-tip th { text-align: left; font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 0 8px 2px 0; border-bottom: 1px solid var(--line); }
+.tipbox.sl-tip td { vertical-align: top; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); }
+.tipbox.sl-tip td:nth-child(2) { font-family: var(--f-mono); color: var(--fg); white-space: nowrap; }
+.tipbox.sl-tip td:nth-child(2) span { white-space: normal; word-break: break-all; }
+.tipbox.sl-tip td:nth-child(3) { color: var(--muted); }
+.tipbox.sl-tip tr:last-child td { border-bottom: 0; }
