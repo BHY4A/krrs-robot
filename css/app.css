@@ -53,3 +53,17 @@
 
 /* подсказка над схемами Simulink на сенсорных экранах */
 @media (hover: none) { .dhint-r::before { content: "нажмите на блок — его имя в Simulink"; } .dhint-r { font-size: 0; } .dhint-r::before { font-size: 12px; } }
+
+/* схемы в стиле Simulink (slsvg.js) */
+svg.ssdm.sl .blk { fill: var(--sheet); stroke: var(--fg); stroke-width: 1.1; }
+svg.ssdm.sl .bar { fill: var(--fg); }
+svg.ssdm.sl .ic { fill: none; stroke: var(--fg); stroke-width: 1.1; }
+svg.ssdm.sl .ic.thin { stroke-width: .6; stroke: var(--muted); }
+svg.ssdm.sl .bt { font: 11.5px var(--f-mono); fill: var(--fg); }
+svg.ssdm.sl .bt.sm { font-size: 11px; }
+svg.ssdm.sl .bt.tiny { font-size: 9px; }
+svg.ssdm.sl .bt.big { font-size: 18px; }
+svg.ssdm.sl .cap { font: 10.5px var(--f-body); fill: var(--muted); }
+svg.ssdm.sl .sg { font: 600 10px var(--f-mono); fill: var(--fg); }
+svg.ssdm.sl .lbl.sig { font: italic 11.5px var(--f-body); fill: var(--accent-2); }
+svg.ssdm.sl .hv:hover .blk, svg.ssdm.sl .hv:focus .blk { stroke: var(--accent); stroke-width: 2; }

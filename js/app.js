@@ -398,7 +398,7 @@
             ${optRow('Листинги программ MATLAB', 'Скрипты этапа в конце его раздела.', sw('listings'))}
             ${optRow('Ответы на контрольные вопросы', 'Отдельный раздел в конце отчёта.', sw('questions'))}
             ${optRow('Шрифт программного кода', 'Листинги MATLAB.', seg('T', 'codePlain', !!S.T.codePlain, [[true, 'Times New Roman'], [false, 'Courier New']], 'bool'))}
-            ${optRow('Комментарии в коде MATLAB', 'Скрипты .m на сайте, в архивах и в листингах отчёта, код блока MATLAB Function. «Без комментариев» убирает строки «%&nbsp;…», блоки %{убирает строки «% …», блоки %{ … %}nbsp;…убирает строки «% …», блоки %{ … %}nbsp;%} и пояснения после кода; текст в кавычках (форматы fprintf, подписи графиков) и сам код не меняются.', seg('T', 'codeNoCm', !!S.T.codeNoCm, [[false, 'С комментариями'], [true, 'Без комментариев']], 'bool'))}
+            ${optRow('Комментарии в коде MATLAB', 'Скрипты .m на сайте, в архивах и в листингах отчёта, код блока MATLAB Function. «Без комментариев» убирает строки «%&nbsp;…», блоки %{&nbsp;…&nbsp;%} и пояснения после кода; текст в кавычках (форматы fprintf, подписи графиков) и сам код не меняются.', seg('T', 'codeNoCm', !!S.T.codeNoCm, [[false, 'С комментариями'], [true, 'Без комментариев']], 'bool'))}
             ${optRow('Подложка на рисунках', '«Замените рисунком из MATLAB» — что и откуда вставить.', sw('watermark'))}
             ${optRow('Номера формул', 'Сквозные номера (1), (2)… у правого края строки — не путаются со ссылками на формулы методички вида (1.11). Выключено — без номеров, как в методичке.', sw('eqNum'))}
             ${optRow('Межстрочный интервал', 'Основной текст отчёта; титульный лист не меняется.', seg('T', 'line1', !!S.T.line1, [[false, '1,5'], [true, '1,0']], 'bool'))}
@@ -583,9 +583,14 @@
     try {
       if (id === 'd_lr2') return DG.ss(R).svg('Модель в пространстве состояний');
       if (id === 'd_lr3_sys') return DG.sys(R, false).svg('Системная модель');
+      if (id === 'd_lr3_realin') return DG.realIn(R).svg('Подсистема Real_in');
+      if (id === 'd_lr3_realout') return DG.realOut(R).svg('Подсистема Real_out');
       if (id === 'd_lr3_plant') return DG.plant(R).svg('Подсистема Plant');
-      if (id === 'd_lr4_gs') return DG.getStates(R).svg('Подсистема get_states');
+      if (id === 'd_lr4_gs1') return DG.getStates(R, 1).svg('Подсистема get_states, модель s1');
+      if (id === 'd_lr4_gs2') return DG.getStates(R, 2).svg('Подсистема get_states с интегратором');
+      if (id === 'd_lr4_gs') return DG.getStates(R, 3).svg('Подсистема get_states, модель s4');
       if (id === 'd_lr4_ctrl') return DG.control(R).svg('Подсистема Control');
+      if (id === 'd_lr4_sys') return DG.sysLqr(R).svg('Системная модель с регулятором');
     } catch (e) { console.error(e); }
     return '';
   }
@@ -1029,7 +1034,7 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
       return { data: url.split(',')[1], w: 900, h };
     } finally { try { Plotly.purge(host); } catch (e) { /* ignore */ } host.remove(); }
   }
-  const SVG_STYLE = '<style>.wire{fill:none;stroke:#000;stroke-width:1.2}.arrowhead{fill:#000}.blk{fill:#fff;stroke:#000;stroke-width:1.2}.blk.acc{fill:#fff;stroke:#000;stroke-width:1.6}.blk.dsh{stroke-dasharray:5 3;fill:#fff}.bar{fill:#000}.bt{font:12px "Times New Roman",serif;fill:#000}.frac{stroke:#000;stroke-width:1}.cap{font:10.5px "Times New Roman",serif;fill:#333}.sum{fill:#fff;stroke:#000;stroke-width:1.2}.sumx{stroke:#000;stroke-width:.8}.sg{font:600 12px "Times New Roman",serif;fill:#000}.lbl{font:italic 13px "Times New Roman",serif;fill:#000}.dot{fill:#000}</style>';
+  const SVG_STYLE = '<style>.wire{fill:none;stroke:#000;stroke-width:1.1}.arrowhead{fill:#000}.blk,.sum{fill:#fff;stroke:#000;stroke-width:1.1}.bar{fill:#000}.ic{fill:none;stroke:#000;stroke-width:1.1}.ic.thin{stroke-width:.6;stroke:#555}.bt{font:11.5px "Courier New",monospace;fill:#000}.bt.sm{font-size:11px}.bt.tiny{font-size:9px}.bt.big{font-size:18px}.frac{stroke:#000;stroke-width:1}.cap{font:10.5px Arial,sans-serif;fill:#333}.sg{font:600 10px "Courier New",monospace;fill:#000}.lbl{font:italic 11.5px "Times New Roman",serif;fill:#000}.dot{fill:#000}</style>';
   function svgPng(id) {
     return new Promise((res, rej) => {
       let svg = diagramSvg(id);
@@ -1092,9 +1097,14 @@ ${st.files.map(x => '  ' + x.name.padEnd(18) + x.desc + tag[x.mark || '']).join(
     return {
       d_lr2: 'модель Rob_ss.slx — её строит скрипт Rob_model_ss.m (папка Etap2_StateSpace); снимок окна модели Simulink',
       d_lr3_sys: 'модель Rob_sys.slx — скрипт Rob_model_sys.m (папка Etap3_SystemModel); снимок верхнего уровня модели',
+      d_lr3_realin: 'модель Rob_sys.slx → Plant → подсистема Real_in',
+      d_lr3_realout: 'модель Rob_sys.slx → Plant → подсистема Real_out',
       d_lr3_plant: 'модель Rob_sys.slx → подсистема Plant (двойной щелчок по блоку Plant)',
-      d_lr4_gs: 'модель Rob_lqr.slx — скрипт Rob_model_lqr.m (папка Etap4_LQR) → Controller → get_states',
+      d_lr4_gs1: 'скрипт Rob_model_lqr.m при lqr_mode = 1 → модель Rob_lqr.slx → Controller → get_states',
+      d_lr4_gs2: 'скрипт Rob_model_lqr.m при lqr_mode = 2 → Controller → get_states',
+      d_lr4_gs: 'модель Rob_lqr.slx — скрипт Rob_model_lqr.m (папка Etap4_LQR, lqr_mode = 3) → Controller → get_states',
       d_lr4_ctrl: 'модель Rob_lqr.slx → подсистема Controller',
+      d_lr4_sys: 'модель Rob_lqr.slx (lqr_mode = 3), верхний уровень',
       lr2_up: 'скрипт Rob_model_ss.m → окно figure «Этап 2: g = 9.81» (или Scope модели Rob_ss.slx)',
       lr2_dn: 'скрипт Rob_model_ss.m → окно figure «Этап 2: g = -9.81» (или Scope модели)',
       lr3_enc: 'скрипт Rob_model_sys.m → окна figure «Этап 3: real_model = 0/1», верхний график',

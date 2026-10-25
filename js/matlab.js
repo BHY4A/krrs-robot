@@ -7,6 +7,16 @@
   'use strict';
   const LABS = root.LABS || (typeof require !== 'undefined' ? require('./labs.js') : null);
   const m = LABS.m, mmat = LABS.mmat;
+  /* схемы сайта (diagrams.js): модели строятся с теми же блоками и их положением */
+  const DGM = () => root.DIAG || (typeof require !== 'undefined' ? require('./diagrams.js') : null);
+  const KPOS = 1.5;
+  /* позиции блоков схемы в координатах Simulink: масштаб KPOS, левый верхний угол — (30, 30) */
+  function posOf(d, base) {
+    let x0 = Infinity, y0 = Infinity;
+    const db = base || d;   // base — схема, по которой выравнивать (одинаковые координаты во всех режимах)
+    for (const id of db.order) { const p = db.pos(id); x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); }
+    return id => '[' + d.pos(id).map((v, k) => Math.round(30 + (v - (k % 2 ? y0 : x0)) * KPOS)).join(' ') + ']';
+  }
 
   function header(title, R, noClear) {
     return `%% ${title}
@@ -237,32 +247,31 @@ function sub(path, pos)
 end
 ` + savePngFn;
   /* подсистема перевода ШИМ в напряжение: Ideal (1/K_PWM) или Real (Round, Gain, Saturation) по real_model */
-  function realIn(P) {
-    const pdf = P.satOrder !== 'pwm';
+  function realIn(R) {
+    const P = R.P, pdf = P.satOrder !== 'pwm', q = posOf(DGM().realIn(R)), o = posOf(DGM().realOut(R));
     return `
 function make_real_in(p, pos)
+    % рис. 22–25: вариантная подсистема Ideal_in / Real_in заменена переключателем Switch по real_model
     sub(p, pos);
-    b([p '/Ctl'], 'simulink/Sources/In1', [20 98 50 112]);
-    b([p '/Ideal_in'], 'simulink/Math Operations/Gain', [140 30 200 60], 'Gain', '1/K_PWM');
-    b([p '/Round'], 'simulink/Math Operations/Rounding Function', [100 140 150 170], 'Operator', 'round');
-${pdf ? `    b([p '/Gain'], 'simulink/Math Operations/Gain', [180 140 240 170], 'Gain', '1/K_PWM');
-    b([p '/Saturation'], 'simulink/Discontinuities/Saturation', [270 140 320 170], 'UpperLimit', 'PWM_max', 'LowerLimit', '-PWM_max');` :
-    `    b([p '/Saturation'], 'simulink/Discontinuities/Saturation', [180 140 230 170], 'UpperLimit', 'PWM_max', 'LowerLimit', '-PWM_max');
-    b([p '/Gain'], 'simulink/Math Operations/Gain', [260 140 320 170], 'Gain', '1/K_PWM');`}
-    b([p '/real_model'], 'simulink/Sources/Constant', [270 85 320 115], 'Value', 'real_model');
-    b([p '/Switch'], 'simulink/Signal Routing/Switch', [370 80 410 130], 'Criteria', 'u2 > Threshold', 'Threshold', '0.5');
-    b([p '/V'], 'simulink/Sinks/Out1', [450 98 480 112]);
-    l(p, 'Ctl/1', 'Ideal_in/1'); l(p, 'Ctl/1', 'Round/1');
+    b([p '/Ctl'], 'simulink/Sources/In1', ${q('Ctl')});
+    b([p '/Round'], 'simulink/Math Operations/Rounding Function', ${q('Round')}, 'Operator', 'round');
+    b([p '/Gain'], 'simulink/Math Operations/Gain', ${q('Gain')}, 'Gain', '1/K_PWM');
+    b([p '/Saturation'], 'simulink/Discontinuities/Saturation', ${q('Saturation')}, 'UpperLimit', 'PWM_max', 'LowerLimit', '-PWM_max');
+    b([p '/real_model'], 'simulink/Sources/Constant', ${q('real_model')}, 'Value', 'real_model');
+    b([p '/Ideal_in'], 'simulink/Math Operations/Gain', ${q('Ideal_in')}, 'Gain', '1/K_PWM');
+    b([p '/Switch'], 'simulink/Signal Routing/Switch', ${q('Switch')}, 'Criteria', 'u2 > Threshold', 'Threshold', '0.5');
+    b([p '/V'], 'simulink/Sinks/Out1', ${q('V')});
+    l(p, 'Ctl/1', 'Round/1'); l(p, 'Ctl/1', 'Ideal_in/1');
 ${pdf ? `    l(p, 'Round/1', 'Gain/1'); l(p, 'Gain/1', 'Saturation/1'); l(p, 'Saturation/1', 'Switch/1');` : `    l(p, 'Round/1', 'Saturation/1'); l(p, 'Saturation/1', 'Gain/1'); l(p, 'Gain/1', 'Switch/1');`}
     l(p, 'real_model/1', 'Switch/2'); l(p, 'Ideal_in/1', 'Switch/3'); l(p, 'Switch/1', 'V/1');
 end
 function make_real_out(p, pos)
     sub(p, pos);
-    b([p '/In'], 'simulink/Sources/In1', [20 98 50 112]);
-    b([p '/Round'], 'simulink/Math Operations/Rounding Function', [120 140 170 170], 'Operator', 'round');
-    b([p '/real_model'], 'simulink/Sources/Constant', [120 85 170 115], 'Value', 'real_model');
-    b([p '/Switch'], 'simulink/Signal Routing/Switch', [230 80 270 130], 'Criteria', 'u2 > Threshold', 'Threshold', '0.5');
-    b([p '/Data'], 'simulink/Sinks/Out1', [310 98 340 112]);
+    b([p '/In'], 'simulink/Sources/In1', ${o('In')});
+    b([p '/Round'], 'simulink/Math Operations/Rounding Function', ${o('Round')}, 'Operator', 'round');
+    b([p '/real_model'], 'simulink/Sources/Constant', ${o('real_model')}, 'Value', 'real_model');
+    b([p '/Switch'], 'simulink/Signal Routing/Switch', ${o('Switch')}, 'Criteria', 'u2 > Threshold', 'Threshold', '0.5');
+    b([p '/Data'], 'simulink/Sinks/Out1', ${o('Data')});
     l(p, 'In/1', 'Round/1'); l(p, 'Round/1', 'Switch/1'); l(p, 'real_model/1', 'Switch/2'); l(p, 'In/1', 'Switch/3'); l(p, 'Switch/1', 'Data/1');
 end
 `;
@@ -298,23 +307,24 @@ end
 `;
   }
   /* подсистема Plant (рис. 27/38) */
-  function plantCode(x0) {
+  function plantCode(R, x0, pos) {
+    const q = posOf(DGM().plant(R, x0));
     return `
 %% Подсистема Plant: Real_in → State-Space → датчики → Real_out
 p = [mdl '/Plant'];
-sub(p, [330 80 440 160]);
-b([p '/Ctl'], 'simulink/Sources/In1', [20 118 50 132]);
-make_real_in([p '/Real_in'], [90 105 160 145]);
-b([p '/State-Space'], 'simulink/Continuous/State-Space', [220 40 320 90], 'A', 'A1', 'B', 'B1', 'C', 'C1', 'D', 'D1', 'InitialCondition', '${x0}');
-b([p '/State-Space1'], 'simulink/Continuous/State-Space', [220 160 320 210], 'A', 'A2', 'B', 'B2', 'C', 'C2', 'D', 'D2', 'InitialCondition', '[0 0]');
-b([p '/Mux_y'], 'simulink/Signal Routing/Mux', [370 70 375 180], 'Inputs', '2');
-make_fcn([p '/fcn'], [420 95 500 155], R, W);
-b([p '/Mux_data'], 'simulink/Signal Routing/Mux', [540 95 545 155], 'Inputs', '3');
-make_real_out([p '/Real_out'], [590 105 660 145]);
-b([p '/Data'], 'simulink/Sinks/Out1', [710 118 740 132]);
-b([p '/y_out'], 'simulink/Sinks/To Workspace', [420 230 490 260], 'VariableName', 'y_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
-b([p '/data_out'], 'simulink/Sinks/To Workspace', [710 180 780 210], 'VariableName', 'data_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
-b([p '/v_out'], 'simulink/Sinks/To Workspace', [220 250 290 280], 'VariableName', 'v_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+sub(p, ${pos});
+b([p '/Ctl'], 'simulink/Sources/In1', ${q('Ctl')});
+make_real_in([p '/Real_in'], ${q('Real_in')});
+b([p '/State-Space'], 'simulink/Continuous/State-Space', ${q('State-Space')}, 'A', 'A1', 'B', 'B1', 'C', 'C1', 'D', 'D1', 'InitialCondition', '${x0}');
+b([p '/State-Space1'], 'simulink/Continuous/State-Space', ${q('State-Space1')}, 'A', 'A2', 'B', 'B2', 'C', 'C2', 'D', 'D2', 'InitialCondition', '[0 0]');
+b([p '/Mux_y'], 'simulink/Signal Routing/Mux', ${q('Mux_y')}, 'Inputs', '2');
+make_fcn([p '/fcn'], ${q('fcn')}, R, W);
+b([p '/Mux_data'], 'simulink/Signal Routing/Mux', ${q('Mux_data')}, 'Inputs', '3');
+make_real_out([p '/Real_out'], ${q('Real_out')});
+b([p '/Data'], 'simulink/Sinks/Out1', ${q('Data')});
+b([p '/y_out'], 'simulink/Sinks/To Workspace', ${q('y_out')}, 'VariableName', 'y_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+b([p '/data_out'], 'simulink/Sinks/To Workspace', ${q('data_out')}, 'VariableName', 'data_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+b([p '/v_out'], 'simulink/Sinks/To Workspace', ${q('v_out')}, 'VariableName', 'v_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
 l(p, 'Ctl/1', 'Real_in/1');
 l(p, 'Real_in/1', 'State-Space/1'); l(p, 'Real_in/1', 'State-Space1/1'); l(p, 'Real_in/1', 'v_out/1');
 l(p, 'State-Space/1', 'Mux_y/1'); l(p, 'State-Space1/1', 'Mux_y/2');
@@ -334,7 +344,7 @@ new_system(mdl); open_system(mdl);
   /* ---------- этап 2: модель рис. 19 ---------- */
   /* signs: какие расчёты выполнить — [1] (рис. 2.1), [-1] (рис. 2.2) или [1, -1] (весь этап) */
   function modelSS(R, signs) {
-    const P = R.P;
+    const P = R.P, q = posOf(DGM().ss(R));
     signs = signs || [1, -1];
     const runs = signs.map(g => g > 0
       ? '%   g > 0 — робот стоит без регулятора (неустойчив, графики уходят в бесконечность) — рис. 2.1 на сайте;'
@@ -345,16 +355,16 @@ ${runs}
 g_sign = 1; Rob_SM;
 ${saveFlag}Uopen = ${m(P.Uopen)};      % напряжение на двигателях, В (блок Constant)
 
-${newModel('Rob_ss')}b([mdl '/Constant'], 'simulink/Sources/Constant', [30 100 70 130], 'Value', 'Uopen');
-b([mdl '/Mux'], 'simulink/Signal Routing/Mux', [120 90 125 140], 'Inputs', '2');
-b([mdl '/State-Space'], 'simulink/Continuous/State-Space', [200 40 300 90], 'A', 'A1', 'B', 'B1', 'C', 'C1', 'D', 'D1');
-b([mdl '/State-Space1'], 'simulink/Continuous/State-Space', [200 150 300 200], 'A', 'A2', 'B', 'B2', 'C', 'C2', 'D', 'D2');
-b([mdl '/Demux'], 'simulink/Signal Routing/Demux', [350 30 355 100], 'Outputs', '4');
-b([mdl '/Demux1'], 'simulink/Signal Routing/Demux', [350 150 355 200], 'Outputs', '2');
-b([mdl '/Scope'], 'simulink/Sinks/Scope', [420 40 450 90], 'NumInputPorts', '4');
-b([mdl '/Scope1'], 'simulink/Sinks/Scope', [420 155 450 195], 'NumInputPorts', '2');
-b([mdl '/x1_out'], 'simulink/Sinks/To Workspace', [350 230 420 260], 'VariableName', 'x1_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
-b([mdl '/x2_out'], 'simulink/Sinks/To Workspace', [350 280 420 310], 'VariableName', 'x2_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+${newModel('Rob_ss')}b([mdl '/Constant'], 'simulink/Sources/Constant', ${q('Constant')}, 'Value', 'Uopen');
+b([mdl '/Mux'], 'simulink/Signal Routing/Mux', ${q('Mux')}, 'Inputs', '2');
+b([mdl '/State-Space'], 'simulink/Continuous/State-Space', ${q('State-Space')}, 'A', 'A1', 'B', 'B1', 'C', 'C1', 'D', 'D1');
+b([mdl '/State-Space1'], 'simulink/Continuous/State-Space', ${q('State-Space1')}, 'A', 'A2', 'B', 'B2', 'C', 'C2', 'D', 'D2');
+b([mdl '/Demux'], 'simulink/Signal Routing/Demux', ${q('Demux')}, 'Outputs', '4');
+b([mdl '/Demux1'], 'simulink/Signal Routing/Demux', ${q('Demux1')}, 'Outputs', '2');
+b([mdl '/Scope'], 'simulink/Sinks/Scope', ${q('Scope')}, 'NumInputPorts', '4');
+b([mdl '/Scope1'], 'simulink/Sinks/Scope', ${q('Scope1')}, 'NumInputPorts', '2');
+b([mdl '/x1_out'], 'simulink/Sinks/To Workspace', ${q('x1_out')}, 'VariableName', 'x1_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+b([mdl '/x2_out'], 'simulink/Sinks/To Workspace', ${q('x2_out')}, 'VariableName', 'x2_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
 l(mdl, 'Constant/1', 'Mux/1'); l(mdl, 'Constant/1', 'Mux/2');
 l(mdl, 'Mux/1', 'State-Space/1'); l(mdl, 'Mux/1', 'State-Space1/1');
 l(mdl, 'State-Space/1', 'Demux/1'); l(mdl, 'State-Space1/1', 'Demux1/1');
@@ -391,7 +401,7 @@ g_sign = 1;
   /* ---------- этап 3: системная модель ---------- */
   /* models: [0] — только идеальная модель; [0, 1] — идеальная и реальная (весь этап, рис. 3.1–3.2) */
   function modelSys(R, models) {
-    const P = R.P;
+    const P = R.P, q = posOf(DGM().sys(R));
     models = models || [0, 1];
     return header('Этап 3. Системная модель робота (рис. 29, 38)', R) + `% Нужны parametrs_Rob.m, Rob_SM.m, config.m, preload.m в той же папке.
 % Скрипт строит модель Rob_sys.slx: Controller (пока передаёт задание U на выход Ctl)
@@ -403,17 +413,17 @@ g_sign = -1;          % проверка: робот «подвешен» за �
 Rob_SM; preload; config;
 ${saveFlag}U0 = ${m(P.Uopen)};            % задание ШИМ (блок Constant)
 
-${newModel('Rob_sys')}b([mdl '/Constant'], 'simulink/Sources/Constant', [30 100 70 130], 'Value', 'U0');
-b([mdl '/Mux'], 'simulink/Signal Routing/Mux', [110 90 115 140], 'Inputs', '2');
+${newModel('Rob_sys')}b([mdl '/Constant'], 'simulink/Sources/Constant', ${q('Constant')}, 'Value', 'U0');
+b([mdl '/Mux'], 'simulink/Signal Routing/Mux', ${q('Mux')}, 'Inputs', '2');
 % Controller: вход U (задание) и Data (датчики), выход Ctl
 c = [mdl '/Controller'];
-sub(c, [170 80 270 160]);
+sub(c, ${q('Controller')});
 b([c '/U'], 'simulink/Sources/In1', [20 48 50 62]);
 b([c '/Data'], 'simulink/Sources/In1', [20 118 50 132]);
 b([c '/Terminator'], 'simulink/Sinks/Terminator', [100 115 120 135]);
 b([c '/Ctl'], 'simulink/Sinks/Out1', [200 48 230 62]);
 l(c, 'U/1', 'Ctl/1'); l(c, 'Data/1', 'Terminator/1');
-` + plantCode('[0 0 0 0]') + `
+` + plantCode(R, '[0 0 0 0]', q('Plant')) + `
 l(mdl, 'Constant/1', 'Mux/1'); l(mdl, 'Constant/1', 'Mux/2');
 l(mdl, 'Mux/1', 'Controller/1'); l(mdl, 'Controller/1', 'Plant/1'); l(mdl, 'Plant/1', 'Controller/2');
 set_param(mdl, 'PreLoadFcn', sprintf('preload\\nconfig'), 'InitFcn', 'Rob_SM');
@@ -449,14 +459,15 @@ end
 hold off; box on; ylabel(ylab{3}); xlabel('t, c'); legend(leg, 'Location', 'best');
 if save_figs, save_png(fh, ['Ris_3_2_gyro' sfx]); end
 real_model = 0; g_sign = 1;
-` + helpers + realIn(P) + fcnBlock(P);
+` + helpers + realIn(R) + fcnBlock(P);
   }
 
   /* ---------- этап 4: модель с LQR ---------- */
   /* mode не задан — универсальный скрипт (lqr_mode можно задать заранее, по умолчанию 3);
    * 1/2/3 — режим зашит, как на соответствующем шаге методички */
   function modelLQR(R, mode) {
-    const P = R.P;
+    const P = R.P, q = posOf(DGM().sysLqr(R)), c = posOf(DGM().control(R));
+    const g3 = DGM().getStates(R, 3), gs = [1, 2, 3].map(k => posOf(DGM().getStates(R, k), g3)), g = gs[2];
     const pre = mode
       ? `clear; clc; close all;
 % Нужны parametrs_Rob.m, Rob_SM.m, config.m, preload.m, control.m в той же папке.
@@ -476,34 +487,34 @@ nx = size(Klqr, 2);
 
 ${newModel('Rob_lqr')}% Задающий вектор (рис. 51)
 if lqr_mode == 3
-    b([mdl '/v'], 'simulink/Sources/Constant', [20 30 50 50], 'Value', 'vref');
-    b([mdl '/w'], 'simulink/Sources/Constant', [20 150 50 170], 'Value', 'wref');
-    b([mdl '/zero'], 'simulink/Sources/Constant', [20 95 50 115], 'Value', '0');
-    b([mdl '/Integrator'], 'simulink/Continuous/Integrator', [80 25 110 55]);
-    b([mdl '/Integrator1'], 'simulink/Continuous/Integrator', [130 25 160 55]);
-    b([mdl '/Integrator2'], 'simulink/Continuous/Integrator', [80 145 110 175]);
-    b([mdl '/ref'], 'simulink/Signal Routing/Mux', [200 20 205 190], 'Inputs', '7');
+    b([mdl '/v'], 'simulink/Sources/Constant', ${q('v')}, 'Value', 'vref');
+    b([mdl '/w'], 'simulink/Sources/Constant', ${q('w')}, 'Value', 'wref');
+    b([mdl '/zero'], 'simulink/Sources/Constant', ${q('zero')}, 'Value', '0');
+    b([mdl '/Integrator'], 'simulink/Continuous/Integrator', ${q('Integrator')});
+    b([mdl '/Integrator1'], 'simulink/Continuous/Integrator', ${q('Integrator1')});
+    b([mdl '/Integrator2'], 'simulink/Continuous/Integrator', ${q('Integrator2')});
+    b([mdl '/ref'], 'simulink/Signal Routing/Mux', ${q('ref')}, 'Inputs', '7');
     l(mdl, 'v/1', 'Integrator/1'); l(mdl, 'Integrator/1', 'Integrator1/1'); l(mdl, 'w/1', 'Integrator2/1');
     l(mdl, 'Integrator1/1', 'ref/1'); l(mdl, 'Integrator/1', 'ref/2'); l(mdl, 'zero/1', 'ref/3');
     l(mdl, 'v/1', 'ref/4'); l(mdl, 'zero/1', 'ref/5'); l(mdl, 'Integrator2/1', 'ref/6'); l(mdl, 'w/1', 'ref/7');
 else
-    b([mdl '/ref'], 'simulink/Sources/Constant', [120 90 180 120], 'Value', sprintf('zeros(%d,1)', nx));
+    b([mdl '/ref'], 'simulink/Sources/Constant', ${q('zero').replace(/\[(\d+) (\d+) (\d+) (\d+)\]/, (_, a, b, c2, d) => '[' + a + ' ' + b + ' ' + (+c2 + 50) + ' ' + d + ']')}, 'Value', sprintf('zeros(%d,1)', nx));
 end
 
 %% Подсистема Controller: get_states → (ref − X) → Klqr → K_PWM
 c = [mdl '/Controller'];
-sub(c, [240 80 340 160]);
-b([c '/U'], 'simulink/Sources/In1', [20 48 50 62]);
-b([c '/Data'], 'simulink/Sources/In1', [20 148 50 162]);
-make_get_states([c '/get_states'], [90 130 190 180], lqr_mode);
-b([c '/Sum'], 'simulink/Math Operations/Sum', [240 45 260 65], 'Inputs', '+-');
-b([c '/K'], 'simulink/Math Operations/Gain', [290 40 360 70], 'Gain', 'Klqr', 'Multiplication', 'Matrix(K*u)');
-b([c '/K_PWM'], 'simulink/Math Operations/Gain', [390 40 440 70], 'Gain', 'K_PWM');
-b([c '/Ctl'], 'simulink/Sinks/Out1', [480 48 510 62]);
-b([c '/x_out'], 'simulink/Sinks/To Workspace', [240 190 310 220], 'VariableName', 'xest_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
+sub(c, ${q('Controller')});
+b([c '/U'], 'simulink/Sources/In1', ${c('U')});
+b([c '/Data'], 'simulink/Sources/In1', ${c('Data')});
+make_get_states([c '/get_states'], ${c('get_states')}, lqr_mode);
+b([c '/Sum'], 'simulink/Math Operations/Sum', ${c('Sum')}, 'IconShape', 'round', 'Inputs', '|+-');
+b([c '/K'], 'simulink/Math Operations/Gain', ${c('K')}, 'Gain', 'Klqr', 'Multiplication', 'Matrix(K*u)');
+b([c '/K_PWM'], 'simulink/Math Operations/Gain', ${c('K_PWM')}, 'Gain', 'K_PWM');
+b([c '/Ctl'], 'simulink/Sinks/Out1', ${c('Ctl')});
+b([c '/x_out'], 'simulink/Sinks/To Workspace', ${c('x_out')}, 'VariableName', 'xest_ws', 'SaveFormat', 'Structure With Time', 'MaxDataPoints', 'inf');
 l(c, 'U/1', 'Sum/1'); l(c, 'Data/1', 'get_states/1'); l(c, 'get_states/1', 'Sum/2'); l(c, 'get_states/1', 'x_out/1');
 l(c, 'Sum/1', 'K/1'); l(c, 'K/1', 'K_PWM/1'); l(c, 'K_PWM/1', 'Ctl/1');
-` + plantCode('[0 Psi0 0 0]') + `
+` + plantCode(R, '[0 Psi0 0 0]', q('Plant')) + `
 l(mdl, 'ref/1', 'Controller/1'); l(mdl, 'Controller/1', 'Plant/1'); l(mdl, 'Plant/1', 'Controller/2');
 set_param(mdl, 'PreLoadFcn', sprintf('preload\\nconfig'), 'InitFcn', sprintf('Rob_SM\\ncontrol'));
 set_param(mdl, 'Solver', 'ode4', 'FixedStep', '${m(R.dt)}', 'StopTime', '${m(P.Tsim)}');
@@ -524,27 +535,31 @@ end
 if save_figs, save_png(fh, sprintf('Ris_4_%d_lqr%d_real%d', fig_no, lqr_mode, real_model)); end
 fprintf('Klqr = %s\\n', mat2str(Klqr, 5));
 fprintf('psi(конец) = %.3g рад, theta''(конец) = %.4g рад/с, phi''(конец) = %.4g рад/с\\n', Y(end, 2), Y(end, 3), Y(end, 6));
-` + helpers + realIn(P) + fcnBlock(P) + `
+` + helpers + realIn(R) + fcnBlock(P) + `
 function make_get_states(p, pos, mode)
-    % оценка вектора состояния по энкодерам и гироскопу (рис. 40, 49, 52)
+    % оценка вектора состояния по энкодерам и гироскопу (рис. 40, 49, 52);
+    % шины методички: Bus Selector → Demux, Bus Creator States + Bus to Vector → Mux States
     sub(p, pos);
-    b([p '/Data'], 'simulink/Sources/In1', [20 118 50 132]);
-    b([p '/Demux'], 'simulink/Signal Routing/Demux', [80 80 85 170], 'Outputs', '3');
-    b([p '/Sum of Elements'], 'simulink/Math Operations/Sum', [130 60 150 80], 'Inputs', '++');
-    b([p '/D2R'], 'simulink/Math Operations/Gain', [180 55 240 85], 'Gain', '0.5*pi/180');
-    b([p '/D2R1'], 'simulink/Math Operations/Gain', [130 150 190 180], 'Gain', 'pi/180');
-    b([p '/Integrator'], 'simulink/Continuous/Integrator', [220 150 250 180]);
-    b([p '/Add'], 'simulink/Math Operations/Sum', [280 60 300 80], 'Inputs', '++');
-    b([p '/Derivative'], 'simulink/Continuous/Derivative', [340 90 380 120]);
+    b([p '/Data'], 'simulink/Sources/In1', ${g('Data')});
+    b([p '/Demux'], 'simulink/Signal Routing/Demux', ${g('Demux')}, 'Outputs', '[2 1]');
+    b([p '/D2R'], 'simulink/Math Operations/Gain', ${g('D2R')}, 'Gain', 'pi/180');
+    b([p '/Sum of Elements'], 'simulink/Math Operations/Sum of Elements', ${g('Sum of Elements')});
+    b([p '/Gain'], 'simulink/Math Operations/Gain', ${g('Gain')}, 'Gain', '1/2');
+    b([p '/Add'], 'simulink/Math Operations/Add', ${g('Add')}, 'Inputs', '++');
+    b([p '/D2R1'], 'simulink/Math Operations/Gain', ${g('D2R1')}, 'Gain', 'pi/180');
+    b([p '/Integrator'], 'simulink/Continuous/Integrator', ${g('Integrator')});
+    b([p '/Derivative'], 'simulink/Continuous/Derivative', ${g('Derivative')});
     l(p, 'Data/1', 'Demux/1');
-    l(p, 'Demux/1', 'Sum of Elements/1'); l(p, 'Demux/2', 'Sum of Elements/2'); l(p, 'Sum of Elements/1', 'D2R/1');
-    l(p, 'Demux/3', 'D2R1/1'); l(p, 'D2R1/1', 'Integrator/1');
-    l(p, 'D2R/1', 'Add/1'); l(p, 'Integrator/1', 'Add/2'); l(p, 'Add/1', 'Derivative/1');
+    l(p, 'Demux/1', 'D2R/1'); l(p, 'D2R/1', 'Sum of Elements/1'); l(p, 'Sum of Elements/1', 'Gain/1');
+    l(p, 'Demux/2', 'D2R1/1'); l(p, 'D2R1/1', 'Integrator/1');
+    l(p, 'Gain/1', 'Add/1'); l(p, 'Integrator/1', 'Add/2'); l(p, 'Add/1', 'Derivative/1');
     n = 4 + (mode >= 2) + 2*(mode == 3);
-    b([p '/States'], 'simulink/Signal Routing/Mux', [440 40 445 260], 'Inputs', num2str(n));
+    pos_states = {${gs.map(x => `'${x('States')}'`).join(', ')}};
+    pos_x = {${gs.map(x => `'${x('X')}'`).join(', ')}};
+    b([p '/States'], 'simulink/Signal Routing/Mux', str2num(pos_states{mode}), 'Inputs', num2str(n));
     k = 1;
     if mode >= 2
-        b([p '/Integrator1'], 'simulink/Continuous/Integrator', [340 30 370 60]);
+        b([p '/Integrator1'], 'simulink/Continuous/Integrator', ${g('Integrator1')});
         l(p, 'Add/1', 'Integrator1/1'); l(p, 'Integrator1/1', 'States/1'); k = 2;
     end
     l(p, 'Add/1', sprintf('States/%d', k));            % theta
@@ -552,13 +567,14 @@ function make_get_states(p, pos, mode)
     l(p, 'Derivative/1', sprintf('States/%d', k + 2)); % theta_dot
     l(p, 'D2R1/1', sprintf('States/%d', k + 3));       % psi_dot
     if mode == 3
-        b([p '/Sum'], 'simulink/Math Operations/Sum', [130 210 150 230], 'Inputs', '-+');
-        b([p '/R_W'], 'simulink/Math Operations/Gain', [180 205 240 235], 'Gain', 'R/W*pi/180');
-        b([p '/Derivative1'], 'simulink/Continuous/Derivative', [340 230 380 260]);
-        l(p, 'Demux/1', 'Sum/1'); l(p, 'Demux/2', 'Sum/2'); l(p, 'Sum/1', 'R_W/1');
+        b([p '/Demux1'], 'simulink/Signal Routing/Demux', ${g('Demux1')}, 'Outputs', '2');
+        b([p '/Sum'], 'simulink/Math Operations/Add', ${g('Sum')}, 'Inputs', '-+');
+        b([p '/R_W'], 'simulink/Math Operations/Gain', ${g('R_W')}, 'Gain', 'R/W');
+        b([p '/Derivative1'], 'simulink/Continuous/Derivative', ${g('Derivative1')});
+        l(p, 'D2R/1', 'Demux1/1'); l(p, 'Demux1/1', 'Sum/1'); l(p, 'Demux1/2', 'Sum/2'); l(p, 'Sum/1', 'R_W/1');
         l(p, 'R_W/1', 'Derivative1/1'); l(p, 'R_W/1', 'States/6'); l(p, 'Derivative1/1', 'States/7');
     end
-    b([p '/X'], 'simulink/Sinks/Out1', [490 143 520 157]);
+    b([p '/X'], 'simulink/Sinks/Out1', str2num(pos_x{mode}));
     l(p, 'States/1', 'X/1');
 end
 `;
@@ -669,12 +685,12 @@ if save_figs, save_png(fh, 'Ris_4_check_bez_Simulink'); end
     if (tab === 'lr4') {
       const k2 = P.R / P.W;
       return [{ t: 'Подсистема get_states (рис. 40, 49, 52)', rows: [
-        ['Degrees to Radians', 'энкодеры и гироскоп', 'pi/180 = ' + num(Math.PI / 180)], ['Gain', '½ (среднее энкодеров)', '1/2'],
-        ['Gain R/W', 'R/W', num(k2)], ['Integrator', 'Initial condition', '0'], ['Bus Selector (s4)', 'порядок сигналов', 'theta_int, theta, psi, theta_dot, psi_dot, phi, phi_dot']] },
+        ['D2R, D2R1 (Degrees to Radians)', 'энкодеры и гироскоп', 'pi/180 = ' + num(Math.PI / 180)], ['Sum of Elements', 'θml + θmr', '—'], ['Gain', '½ (среднее энкодеров)', '1/2'],
+        ['Add', 'List of signs', '++ (θ = ½(θml + θmr) + ψ)'], ['Sum (s4)', 'List of signs', '−+ (θmr − θml)'], ['R_W (s4)', 'Gain', 'R/W = ' + num(k2)], ['Integrator', 'Initial condition', '0'], ['Bus Selector (s4)', 'порядок сигналов', 'theta_int, theta, psi, theta_dot, psi_dot, phi, phi_dot']] },
       { t: 'Подсистема Control (рис. 44–45)', rows: [
         ['Gain K (s1)', 'Gain, Matrix(K*u)', 'Klqr = ' + mx(R.lqr.s1.K)], ['Gain K (s3)', 'Gain, Matrix(K*u)', 'Klqr = ' + mx(R.lqr.s3.K)],
         ['Gain K (s4)', 'Gain, Matrix(K*u)', 'Klqr = ' + mx(R.lqr.s4.K)], ['Gain K_PWM', 'Gain', 'K_PWM = ' + num(R.KPWM)],
-        ['Sum', 'List of signs', '+-'], ['State-Space (Plant)', 'Initial conditions', '[0 Psi0 0 0], Psi0 = ' + num(P.Psi0)],
+        ['Sum', 'List of signs', '|+- (Icon shape: round)'], ['State-Space (Plant)', 'Initial conditions', '[0 Psi0 0 0], Psi0 = ' + num(P.Psi0)],
         ['Model Properties', 'InitFcn', 'Rob_SM\ncontrol'], ['Configuration', 'Solver / Fixed step', 'ode4 / ' + num(R.dt)]] },
       { t: 'Задающий вектор (рис. 51)', rows: [
         ['Constant (θ̇)', 'Constant value', num(P.vref)], ['Constant (φ̇)', 'Constant value', num(P.wref)], ['Integrator, Integrator1', 'θ = v·t, θint = v·t²/2', 'Initial condition 0'],
