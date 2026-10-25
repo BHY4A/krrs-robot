@@ -46,7 +46,7 @@
       case 'add': return [o.w || 26, o.h || Math.max(30, (o.nIn || (o.signs || '++').length) * 16)];
       case 'sumel': return [o.w || 30, o.h || 30];
       case 'step': case 'ramp': case 'clock': case 'zoh': case 'pulse': case 'prod': case 'sat': case 'scope': case 'term': case 'ground': case 'switch':
-        return [o.w || (t === 'term' || t === 'ground' ? 20 : 32), o.h || (t === 'switch' ? 42 : t === 'term' || t === 'ground' ? 20 : 32)];
+        return [o.w || (t === 'term' ? 20 : t === 'ground' ? 26 : 32), o.h || (t === 'switch' ? 42 : t === 'term' ? 20 : t === 'ground' ? 26 : 32)];
       case 'const': case 'display': case 'tows': case 'round': return [Math.max(t === 'display' ? 60 : 34, tw(o.val || o.text || '') + 16), 30];
       case 'mux': case 'demux': return [6, o.h || 40];
       case 'inport': case 'outport': return [30, 16];
@@ -178,7 +178,7 @@
       case 'mux': case 'demux': return `<rect class="bar" x="${x0}" y="${y0}" width="${w}" height="${h}"/>`;
       case 'inport': case 'outport': return `<rect class="blk" x="${x0}" y="${y0}" width="${w}" height="${h}" rx="8"/>` + T(o.val || '1', cx, cy + 4, 'bt sm');
       case 'term': return R() + P(`M${x0 + 4} ${y0 + 4} V${y0 + h - 4}`);
-      case 'ground': return P(`M${cx} ${y0} V${cy} M${x0} ${cy} H${x0 + w} M${x0 + 4} ${cy + 4} H${x0 + w - 4} M${x0 + 7} ${cy + 8} H${x0 + w - 7}`);
+      case 'ground': return R() + P(`M${cx} ${y0 + 4} V${cy} M${x0 + 4} ${cy} H${x0 + w - 4} M${x0 + 7} ${cy + 4} H${x0 + w - 7} M${x0 + 10} ${cy + 8} H${x0 + w - 10}`);
       default: {
         let s = R(o.accent ? 'blk acc' : 'blk') + lines(o.text || '', 'bt sm');
         (o.inNames || []).forEach((t, k) => { s += T(t, x0 + 4, y0 + h * (k + 0.5) / b.nIn + 3, 'bt tiny', 'start'); });
@@ -333,6 +333,28 @@
         if (Math.min(Math.max(s.a[1], s.b[1]), Math.max(t.a[1], t.b[1])) - Math.max(Math.min(s.a[1], s.b[1]), Math.min(t.a[1], t.b[1])) > 0.5) out.push(`наложение ${s.net} и ${t.net} по x=${s.a[0]}`);
       }
     }
+    // вход: последний участок подходит к порту по его направлению и не короче 10; выход: первый участок уходит наружу
+    const dirv = { r: [1, 0], l: [-1, 0], d: [0, 1], u: [0, -1] };
+    this.lines.forEach(l => {
+      if (l.free) return;
+      const n = l.pts.length, a = l.pts[n - 2], b = l.pts[n - 1], q = this.inP(l.dst, l.dk), v = dirv[q[2]];
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.abs(dx) + Math.abs(dy);
+      if (Math.sign(dx) !== v[0] || Math.sign(dy) !== v[1] || len < 10) out.push(`стрелка в ${l.dst}/${l.dk} подходит не по направлению входа или слишком коротким участком (${len})`);
+      const o = this.outP(l.src, l.sk), p0 = l.pts[0], p1 = l.pts[1];
+      if (p0[0] === o[0] && p0[1] === o[1]) {
+        const w = dirv[o[2]], ex = p1[0] - p0[0], ey = p1[1] - p0[1];
+        if (Math.sign(ex) !== w[0] || Math.sign(ey) !== w[1] || Math.abs(ex) + Math.abs(ey) < 8) out.push(`линия из ${l.src}/${l.sk} уходит не наружу или слишком коротко`);
+      } else {
+        // точка ветвления должна лежать на другой линии того же сигнала
+        const on = this.lines.some(m => m !== l && !m.free && m.src === l.src && m.sk === l.sk && m.pts.some((c, k) => k && ((c[0] === p0[0] && m.pts[k - 1][0] === p0[0] && (p0[1] - c[1]) * (p0[1] - m.pts[k - 1][1]) <= 0) || (c[1] === p0[1] && m.pts[k - 1][1] === p0[1] && (p0[0] - c[0]) * (p0[0] - m.pts[k - 1][0]) <= 0))));
+        if (!on) out.push(`точка ветвления ${l.src}/${l.sk}→${l.dst} не лежит на линии этого сигнала`);
+      }
+      for (let k = 1; k < n; k++) {
+        const c = l.pts[k - 1], e = l.pts[k];
+        if (c[0] !== e[0] && c[1] !== e[1]) out.push(`косой участок ${l.src}→${l.dst}`);
+        else if (Math.abs(e[0] - c[0]) + Math.abs(e[1] - c[1]) < 8) out.push(`мелкая ступенька ${l.src}→${l.dst}`);
+      }
+    });
     // блоки друг на друге
     for (let i = 0; i < this.order.length; i++) for (let j = i + 1; j < this.order.length; j++) if (hit(bx(this.order[i]), bx(this.order[j]))) out.push(`блоки ${this.order[i]} и ${this.order[j]} перекрываются`);
     // подписи

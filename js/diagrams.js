@@ -272,8 +272,8 @@
     d.add('zero', 'const', 170, p(3), { val: '0', tip: T('заданные ψ и ψ̇ — нули (иначе робот упадёт)', [['Constant value', '0', '']]) });
     d.add('w', 'const', 30, p(7), { val: fx(P.wref), tip: T('заданная скорость поворота φ̇', [['Constant value', 'wref', 'wref = ' + fx(P.wref) + ' рад/с']]) });
     d.add('Integrator2', 'int', 115, p(6), { num: '1', den: 's', tip: INTG('φз = ∫wref dt') });
-    d.add('Controller', 'subsys', 390, 160, { nIn: 2, nOut: 1, w: 100, h: 60, inNames: ['U', 'Data'], outNames: ['Ctl'], tip: SUBS('Subsystem Control (рис. 45): get_states, Sum, K, K_PWM') });
-    d.add('Plant', 'subsys', 555, 160, { nIn: 1, nOut: 1, w: 100, h: 60, inNames: ['Ctl'], outNames: ['Data'], accent: true, tip: SUBS('Subsystem Plant (рис. 38), начальное состояние State-Space [0 Psi0 0 0], Psi0 = ' + fx(P.Psi0) + ' рад') });
+    d.add('Controller', 'subsys', 390, 175, { nIn: 2, nOut: 1, w: 100, h: 60, inNames: ['U', 'Data'], outNames: ['Ctl'], tip: SUBS('Subsystem Control (рис. 45): get_states, Sum, K, K_PWM') });
+    d.add('Plant', 'subsys', 555, 175, { nIn: 1, nOut: 1, w: 100, h: 60, inNames: ['Ctl'], outNames: ['Data'], accent: true, tip: SUBS('Subsystem Plant (рис. 38), начальное состояние State-Space [0 Psi0 0 0], Psi0 = ' + fx(P.Psi0) + ' рад') });
     d.ln('v', 1, 'ref', 4);
     d.ln('v', 1, 'Integrator', 1, { from: [70, p(4)], via: [[70, p(2)]] });
     d.ln('Integrator', 1, 'ref', 2);
@@ -287,7 +287,7 @@
     d.ln('ref', 1, 'Controller', 1, { label: 'ref' });
     d.ln('Controller', 1, 'Plant', 1, { label: 'Ctl' });
     const xr = d.b.Plant.x + d.b.Plant.w / 2 + 25, xl = d.b.Controller.x - d.b.Controller.w / 2 - 25;
-    d.ln('Plant', 1, 'Controller', 2, { via: [[xr, 160], [xr, 235], [xl, 235], [xl, d.inP('Controller', 2)[1]]], label: 'Data' });
+    d.ln('Plant', 1, 'Controller', 2, { via: [[xr, 175], [xr, 245], [xl, 245], [xl, d.inP('Controller', 2)[1]]], label: 'Data' });
     return d;
   }
 
